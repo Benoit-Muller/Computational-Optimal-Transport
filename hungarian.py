@@ -7,6 +7,21 @@ to define:
 matrix of costs C of size n*n
 '''
 
+def preprocess(C):
+    n,n=np.shape(C)
+    U=np.min(C,axis=1)
+    V=np.min(C-U,axis=0)
+    row= np.zeros(n)
+    x=np.zeros((n,n)).astype(bool)
+    for i in range(n):
+        for j in range(n):
+            if row[j]==0 and np.isclose(U[i]+V[j],C[i,j]):
+                x[i,j] = True
+                row[j] = i
+                break
+    return n,U,V,row,x
+
+
 def alternate(C,U,V,row,k):
     ''' Find an alternating tree rooted at an unassigned vertex k ∈ U
     returns 
