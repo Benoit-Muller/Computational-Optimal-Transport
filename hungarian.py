@@ -8,9 +8,13 @@ matrix of costs C of size n*n
 '''
 
 def preprocess(C):
+    ''' Compute a feasible dual solution (U and V) and partial primal solution (row,x) for a cost C.
+        return vectors as 1-dim arrays
+
+    '''
     n,n=np.shape(C)
     U=np.min(C,axis=1)
-    V=np.min(C-U,axis=0)
+    V=np.min(C-U[:,np.newaxis],axis=0)
     row= np.zeros(n)
     x=np.zeros((n,n)).astype(bool)
     for i in range(n):
