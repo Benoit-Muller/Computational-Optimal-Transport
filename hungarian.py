@@ -41,24 +41,27 @@ def alternate(C,U,V,row,k):
     i = k # current vertex in U
     while (not fail) and sink is None:
         # each iteration try to go to V and come back 
-        print(i)
+        #print("   i=",i)
         SU[i] = True # i is scanned:
         for j in range(n): # scanning of i
             #print((not SV[j]), np.isclose(U[i]+V[j],C[i,j],rtol=1e-3))
             if (not LV[j]) and np.isclose(U[i]+V[j],C[i,j],rtol=1e-8):
-                print(" ",j)
+                #print("    label j=",j)
                 pred[j]=i
                 LV[j] = True
 
         # look for a vertex j in V labelised but unscanned: 
-        j=-1
+        j=0
         while j<n and ((not LV[j]) or SV[j]):
             j=j+1
+        #print("   selected j=",j)
         if j==n: # j not found
+           #print("   fail")
            fail = True
         else: # j found
             SV[j] = True 
             if row[j] is None: # j unmached, found a augmenting path
+                #print("   sink=",j)
                 sink = j
             else: # j is matched, continue the tree there
                 i = row[j]
@@ -67,31 +70,47 @@ def alternate(C,U,V,row,k):
 def hungarian(C):
     ''' O(n^4) Hungarian algorithm '''
     n,U,V,row,x = preprocess(C) # attention, x not used anymore
-    phi = np.empty(n) # i=row[j] iff phi[i]==j
+    phi = np.empty(n, np.int8) # i=row[j] iff phi[i]==j
     AU = np.full(n,False) # assigned vertex in U
-    for i in range(n):
-        if not (row[i] is None):
-            phi[row[i]] = i
-            AU[i]=True
+    for j in range(n): # initialise phi and AU from row 
+        if not (row[j] is None):
+            phi[row[j]] = j
+            AU[row[j]]=True # were some error here
     while not np.all(AU): # while the assigment is partial(not a matching)
         k = np.flatnonzero(1-AU)[0] # take the first available root for alternate()
-        print("k=",k)
-        while AU[k] is False:
+        #print("row=",row)
+        #print("AU=",AU)
+        #print("k=",k)
+        while AU[k]==False:
+            #print("  alternate with k=",k)
             sink,pred,SU,LV = alternate(C,U,V,row,k) # grow alternating tree
+            #print(" sink=",sink)
+            #print(" pred=",pred)
             if not(sink is None): # tree is augmenting, increase primal solution:
+                #print(" primal")
+                #print(" pred=",pred)
                 AU[k]=True 
                 j = sink
                 condition = True
                 while condition: # while we haven't reach the root
                     i = pred[j]
+                    #print("  i,j=",i,j)
                     row[j] = i
                     phi[i],j = j,phi[i]
-                    condition = i==k
+                    condition = not(i==k)
             else: # tree is not augmenting, update dual solution:
-                delta = np.min((C-U[:,np.newaxis]-V)[SU,1-LV])
+                #print(" dual",U,V)
+                delta = np.min((C-U[:,np.newaxis]-V)[SU[:,np.newaxis]*(LV==False)])
+                #print("delta=",delta)
                 U = U + delta*SU
                 V = V - delta*LV
+    #print("row=",row,type(row))
+    x=np.full((n,n),False) # attention x is not updated until now:
+    for j in range(n):
+        x[row[j],j]=True
+    #print("x=",x)
     assert not np.any(np.sort(row) - np.arange(n)), "primal variables not feasible"
     assert np.all(U[:,np.newaxis] + V <= C), "dual variables not feasible"
     assert not np.any((1-np.isclose(U[:,np.newaxis]+V,C)) * x), "complementary stackness not satisfied"
-    return row,phi,U,V
+    print("hungarian succed (feasibility and complementary slackness holds)")
+    return row,x,phi,U,V
