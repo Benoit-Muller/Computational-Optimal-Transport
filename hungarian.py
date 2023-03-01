@@ -6,7 +6,7 @@ import warnings
 
 def preprocess(C):
     ''' Compute a feasible dual solution (U and V) and partial primal solution (row,x) for a cost C.
-        return vectors as 1-dim arrays
+        (return vectors as 1-dim arrays)
 
     '''
     n,n=np.shape(C)
