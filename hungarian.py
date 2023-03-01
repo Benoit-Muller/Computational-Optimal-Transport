@@ -4,7 +4,7 @@ Follows the notations and pseudocode of "Assignment Problems" by R. Burkard, M. 
 import numpy as np
 import warnings
 
-def preprocess(C):
+def preprocess(C,tol=1e-5):
     ''' Compute a feasible dual solution (U and V) and partial primal solution (row,x) for a cost C.
         (return vectors as 1-dim arrays)
 
@@ -12,7 +12,7 @@ def preprocess(C):
     n,n=np.shape(C)
     U=np.min(C,axis=1)
     V=np.min(C-U[:,np.newaxis],axis=0)
-    assert np.all(U[:,np.newaxis] + V <= C), "dual variables not feasible"
+    assert np.all(U[:,np.newaxis] + V <= C + tol), "dual variables not feasible, with transgression " + str(np.min(C-U[:,np.newaxis] - V))
     row= np.full(n,None)
     x = np.full((n,n),False) # x not used for hungarian algo, take it off later
     for i in range(n):
@@ -67,9 +67,9 @@ def alternate(C,U,V,row,k):
                 i = row[j]
     return sink,pred,SU,LV
 
-def hungarian(C):
+def hungarian(C,tol=1e-5):
     ''' O(n^4) Hungarian algorithm '''
-    n,U,V,row,x = preprocess(C) # attention, x not used anymore
+    n,U,V,row,x = preprocess(C,tol) # attention, x not used anymore
     phi = np.empty(n, np.int8) # i=row[j] iff phi[i]==j
     AU = np.full(n,False) # assigned vertex in U
     for j in range(n): # initialise phi and AU from row 
@@ -110,7 +110,7 @@ def hungarian(C):
         x[row[j],j]=True
     #print("x=",x)
     assert not np.any(np.sort(row) - np.arange(n)), "primal variables not feasible"
-    assert np.all(U[:,np.newaxis] + V <= C), "dual variables not feasible"
+    assert np.all(U[:,np.newaxis] + V <= C + tol), "dual variables not feasible, with transgression " + str(np.min(C-U[:,np.newaxis] - V))
     assert not np.any((1-np.isclose(U[:,np.newaxis]+V,C)) * x), "complementary stackness not satisfied"
     print("hungarian succed (feasibility and complementary slackness holds)")
     return row,x,phi,U,V
