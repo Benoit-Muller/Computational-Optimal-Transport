@@ -2,7 +2,7 @@
 Follows the notations and pseudocode of "Assignment Problems" by R. Burkard, M. Dell’Amico, and S. Martello.
 '''
 import numpy as np
-import warnings
+#import warnings
 
 def preprocess(C,tol=1e-5):
     ''' Compute a feasible dual solution (U and V) and partial primal solution (row,x) for a cost C.
@@ -67,7 +67,7 @@ def alternate(C,U,V,row,k):
                 i = row[j]
     return sink,pred,SU,LV
 
-def hungarian(C,tol=1e-5):
+def hungarian(C,tol=1e-5,disp=True):
     ''' O(n^4) Hungarian algorithm '''
     n,U,V,row,x = preprocess(C,tol) # attention, x not used anymore
     phi = np.empty(n, np.int8) # i=row[j] iff phi[i]==j
@@ -112,5 +112,7 @@ def hungarian(C,tol=1e-5):
     assert not np.any(np.sort(row) - np.arange(n)), "primal variables not feasible"
     assert np.all(U[:,np.newaxis] + V <= C + tol), "dual variables not feasible, with transgression " + str(np.min(C-U[:,np.newaxis] - V))
     assert not np.any((1-np.isclose(U[:,np.newaxis]+V,C)) * x), "complementary stackness not satisfied"
-    print("hungarian succed (feasibility and complementary slackness holds)")
-    return row,x,phi,U,V
+    if disp == True:
+        print("hungarian succed (feasibility and complementary slackness holds)")
+    W = np.sum(x*C)
+    return row,x,phi,U,V,W
