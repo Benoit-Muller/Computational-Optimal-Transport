@@ -2,6 +2,8 @@
 import numpy as np
 from scipy.linalg import sqrtm,inv,norm
 from warnings import warn
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
 
 def gaussian_transport(mean1, cov1, mean2, cov2):
     ''' Compute the the Wasserstein distance bewteen two gaussian measure,

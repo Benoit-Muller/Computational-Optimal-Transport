@@ -7,7 +7,6 @@ import numpy as np
 def preprocess(C,tol=1e-5):
     ''' Compute a feasible dual solution (U and V) and partial primal solution (row,x) for a cost C.
         (return vectors as 1-dim arrays)
-
     '''
     n,n=np.shape(C)
     U=np.min(C,axis=1)
@@ -114,5 +113,88 @@ def hungarian(C,tol=1e-5,disp=True):
     assert not np.any((1-np.isclose(U[:,np.newaxis]+V,C)) * x), "complementary stackness not satisfied"
     if disp == True:
         print("hungarian succed (feasibility and complementary slackness holds)")
+    W = np.sum(x*C)
+    return row,x,phi,U,V,W
+
+def augment(C,U,V,row,k):
+    ''' Find an alternating tree rooted at an unassigned vertex k ∈ U
+    returns 
+            sink: the final leaf
+            pred: array of predescessors
+    First version, not tested. '''
+    tol=1e-5
+    n,n = np.shape(C)
+    pi = np.full(n,np.inf)# min of column
+    SU = np.zeros(n).astype(bool) # scanned in U (also labelised)
+    LV = np.zeros(n).astype(bool) # labelised in V 
+    SV = np.zeros(n).astype(bool) # scanned in V
+    pred = np.full(n,None) # predecessor labelisation of the tree
+    sink = None # the final node of an augmenting tree
+    i = k # current vertex in U
+    while sink is None:
+        # each iteration try to go to V and come back 
+        #print("   i=",i)
+        SU[i] = True # i is scanned:
+        for j in range(n): # scanning of i
+            #print((not SV[j]), np.isclose(U[i]+V[j],C[i,j],rtol=1e-3))
+            if (not LV[j]) and C[i,j]-U[i]-V[j] < pi[j]:
+                #print("    label j=",j)
+                pred[j]=i
+                pi[j]= C[i,j]-U[i]-V[j]
+                if pi[j]<tol:
+                    LV[j] = True
+
+        if not np.any(LV*(1-SV)): # j not found, dual update
+           #print("   dual update")
+           delta = np.min(pi[V*(1-V)])
+           U[SU] = U[SU] + delta
+           V[LV] = V[LV] - delta
+           pi[V*(1-V)] = pi[V*(1-V)] - delta
+           LV[pi<tol] = True
+        SV[j] = True 
+
+        # augment tree:
+        j = np.flatnonzero(LV*(1-SV))[0]
+        SV[j] = True
+        if row[j] is None: # j unmached, found a augmenting path
+            #print("   sink=",j)
+            sink = j
+        else: # j is matched, continue the tree there
+            i = row[j]
+
+    return sink,pred,row,U,V
+
+def hungarian3(C,tol=1e-5,disp=True):
+    ''' O(n^4) Hungarian algorithm '''
+    n,U,V,row,x = preprocess(C,tol) # attention, x not used anymore
+    Ubar = np.full(n,False)
+    phi = np.empty(n, np.int8) # i=row[j] iff phi[i]==j
+    AU = np.full(n,False) # assigned vertex in U
+    for j in range(n): # initialise phi and AU from row 
+        if not (row[j] is None):
+            phi[row[j]] = j
+            AU[row[j]]=True # were some error here
+    while not np.all(Ubar):
+        k = np.flatnonzero(1-Ubar)[0]
+        sink,pred,row,U,V = augment(C,U,V,row,k)
+        Ubar[k] = True
+        j = sink
+        condition = True
+        while condition:
+            i = pred[j]
+            row[j] = i
+            phi[i],j = j,phi[i]
+            condition = i==k
+
+    x=np.full((n,n),False) # attention x is not updated until now:
+    for j in range(n):
+        x[row[j],j]=True
+    #print("x=",x)
+    print(row)
+    assert not np.any(np.sort(row) - np.arange(n)), "primal variables not feasible"
+    assert np.all(U[:,np.newaxis] + V <= C + tol), "dual variables not feasible, with transgression " + str(np.min(C-U[:,np.newaxis] - V))
+    assert not np.any((1-np.isclose(U[:,np.newaxis]+V,C)) * x), "complementary stackness not satisfied"
+    if disp == True:
+        print("hungarian3 succed (feasibility and complementary slackness holds)")
     W = np.sum(x*C)
     return row,x,phi,U,V,W
