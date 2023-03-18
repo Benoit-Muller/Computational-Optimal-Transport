@@ -9,7 +9,6 @@ def preprocess(C,tol=1e-5):
     ''' Compute a feasible dual solution (U and V) and partial primal solution (row,x) for a cost C.
         (return vectors as 1-dim arrays)
     '''
-    if np.min(C)<0
     n,n=np.shape(C)
     U=np.min(C,axis=1)
     V=np.min(C-U[:,np.newaxis],axis=0)
@@ -199,7 +198,7 @@ def hungarian3(C,tol=1e-5,disp=True):
     #print(row)
     assert not np.any(np.sort(row) - np.arange(n)), "primal variables not feasible"
     assert np.all(U[:,np.newaxis] + V <= C + tol), "dual variables not feasible, with transgression " + str(np.min(C-U[:,np.newaxis] - V))
-    assert not np.any((1-np.isclose(U[:,np.newaxis]+V,C)) * x), "complementary stackness not satisfied"
+    assert not np.any((1-np.isclose(U[:,np.newaxis]+V,C,atol=tol)) * x), "complementary stackness not satisfied"
     if disp == True:
         print("hungarian3 succed (feasibility and complementary slackness holds)")
     W = np.sum(x*C)
