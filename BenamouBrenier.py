@@ -3,6 +3,7 @@
 import numpy as np
 import warnings
 from warnings import warn
+from tqdm.notebook import tqdm # to display loading bars
 
 class TransportProblem:
     def __init__(self,mesh,mu,nu,T,tau=1):
@@ -68,14 +69,14 @@ class TransportProblem:
     
     def projection_step(self):
         alpha_beta = self.nabla_phi + self.M / self.tau
-        tol = 1e-5
+        tol = 1e-4
         if np.max(alpha_beta) <= 0+tol: # already in the set
             return
         
-        maxiter = 1000 # TODO: to be tuned
+        maxiter = 1 # TODO: to be tuned
         nbr_maxiter_reached = 0
         # iter on the grid:
-        for index in np.ndindex(self.spacetime_grid_shape): # grid-wise
+        for index in tqdm(np.ndindex(self.spacetime_grid_shape),total=np.prod(self.spacetime_grid_shape)): # grid-wise
             alpha = alpha_beta[0][index]
             beta = np.linalg.norm(alpha_beta[1:][(...,*index)], axis=0) # make it a 2D problem
             f = lambda t: (alpha-0.5*t)*(1+0.5*t)**2 + 0.5*beta**2
