@@ -12,22 +12,22 @@ class TransportProblem:
         """
         With N = N_1*...*N_d discretization
         Inputs:
-                mesh: array of shape            (d,N_1,...,N_d)
-                mu,nu: arrays of shape            (N_1,...,N_d)
-                T: integer
+                mesh: array of shape            (d,N_1,...,N_d)     mesh grid that discretize space.
+                mu,nu: arrays of shape            (N_1,...,N_d)     source and target measure of transportation .
+                T: integer                                          number of discretized times.
         Initialized:
-                times: array of shape          (T,)
-                rho: array of shape            (T, N_1,...,N_d)
-                m: array of shape           (d, T, N_1,...,N_d)
-                M: array of shape         (1+d, T, N_1,...,N_d)
-                phi: array of shape            (T, N_1,...,N_d)
-                nabla_phi: array of shape (1+d, T, N_1,...,N_d)
-                a: array of shape              (T, N_1,...,N_d)
-                b: array of shape           (d, T, N_1,...,N_d)
-                c: array of shape         (1+d, T, N_1,...,N_d)
+                times: array of shape          (T,)                 array of the discretized times
+                rho: array of shape            (T, N_1,...,N_d)     pressure.
+                m: array of shape           (d, T, N_1,...,N_d)     pressure*velocity field
+                M: array of shape         (1+d, T, N_1,...,N_d)     =(rho,m)
+                phi: array of shape            (T, N_1,...,N_d)     Lagrange multiplier
+                nabla_phi: array of shape (1+d, T, N_1,...,N_d)     gradient of phi
+                a: array of shape              (T, N_1,...,N_d)     parameter of the Benamou functional
+                b: array of shape           (d, T, N_1,...,N_d)     parameter of the Benamou functional
+                c: array of shape         (1+d, T, N_1,...,N_d)     =(a,b)
 
         """
-        # last dimensions always contain space and time  
+        # creation of shapes tuples, last dimensions always contain space and time:
         (d,*space_grid_shape) = mesh.shape
         space_grid_shape = tuple(space_grid_shape)
         if space_grid_shape != mu.shape or space_grid_shape != nu.shape:
@@ -42,8 +42,8 @@ class TransportProblem:
 
         self.T = T
         self.times = np.linspace(0,1,T)
+        # rho inizialized at L2 interpolation (pointwise):
         self.rho = (1-self.times.reshape((T,)+d*(1,)))*mu + self.times.reshape((T,)+d*(1,))*nu # space-time density
-        # rho inizialized at L2 interpolation
         self.m = np.zeros((self.d,) + spacetime_grid_shape) # space time vector field
         self.M = np.concatenate((self.rho[np.newaxis,...], self.m)) # the target unknown
 
@@ -58,28 +58,34 @@ class TransportProblem:
         print("TransportProblem object initialized.")
 
     def __str__(self):
-        "print class properties"
+        " Print all class properties. "
         return  str(self.__class__) + '\n'+ '\n'.join(('{} = {}'.format(item, self.__dict__[item]) for item in self.__dict__))
     
     def update_c(self):
+         " Update c according to a and b. "
          self.c = np.concatenate((self.a[np.newaxis,...], self.b))
+         
     def update_rho_m(self):
+        " Update rho and m according to M. "
         self.rho = self.M[0]
         self.m = self.M[1:]
 
     def poisson_step():
-        # return the solution to tau*laplacian(phi) = div(tau*c-M)
+        """  Compute the solution to tau*laplacian(phi) = div(tau*c-M) ,
+        with time-Neumann conditions    tau * d/dt phi(0,.) = mu - rho(0,.) + tau * a (0,.)
+                                        tau * d/dt phi(1,.) = nu - rho(1,.) + tau * a (1,.) """
         return
     
     def projection_step(self):
+        " Minimize c, computed as the orthogonal projection of nabla_phi+M/tau-c to the parabola K = {(a,b) st. a+|b|^2 < 0}. "
         a=self.a
         b=self.b
         alpha_beta = self.nabla_phi + self.M / self.tau
         tol = 1e-8
         if np.max(alpha_beta) <= 0+tol: # already in the set
             return
-        f = lambda t,alpha,beta: (alpha-0.5*t)*(1+0.5*t)**2 + 0.5*beta**2
-        df = lambda t,alpha: (0.5*t+1)*(-0.75*t+alpha-0.5) # derivative
+        f = lambda t,alpha,beta: (alpha-0.5*t)*(1+0.5*t)**2 + 0.5*beta**2 # function to find zero
+        df = lambda t,alpha: (0.5*t+1)*(-0.75*t+alpha-0.5) # derivative of f
         maxiter = 50 # TODO: to be tuned
         nbr_maxiter_reached = 0
         # iter on the grid:
@@ -120,19 +126,26 @@ class TransportProblem:
         return
     
     def dual_step(self):
+        " Compute the dual step, a gradient step of the dual variable M."
         self.M = self.M - self.tau*(self.c - self.nabla_phi)
         self.update_rho_m()
         print("Dual step done.")
 
     def residual(self):
+        " Compute the residual of the Hamilton-Jacobi equation "
         return self.nabla_phi[0] + 0.5 * np.sum(self.nabla_phi[1:]**2,axis=0)
+    
     def criterium(self):
+        " Normalized residual "
         try:
             return np.sum(self.rho * self.residual()) / np.sum(self.rho * np.sum(self.nabla_phi[1:]**2,axis=0))
         except ZeroDivisionError:
             warn("Division by zero in criterium (rho * nabla_phi = 0), infinity returned.")
             return np.inf
+        
     def solve(self,tol=1e-5,maxiter=100):
+        """ Proceed augmented Lagrandgian method by doing iteratively the three steps poisson-projection-dual,
+        until convergence is detected by residual or maxiter. """
         i = 0
         condition = i < maxiter
         while condition:
@@ -149,6 +162,7 @@ class TransportProblem:
         return
     
     def plot(self,i_time):
+        " Plot rho at desired time index. "
         fig = plt.contour(self.rho[i_time])
         plt.show()
         return fig
