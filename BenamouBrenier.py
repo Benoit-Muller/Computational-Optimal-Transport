@@ -1,7 +1,9 @@
 ''' Implementation of the Benamou_Brenier method based on fluid dynamics.
 '''
 import numpy as np
+import matplotlib.pyplot as plt
 import warnings
+from time import time
 from warnings import warn
 from tqdm.notebook import tqdm # to display loading bars
 
@@ -41,6 +43,7 @@ class TransportProblem:
         self.T = T
         self.times = np.linspace(0,1,T)
         self.rho = (1-self.times.reshape((T,)+d*(1,)))*mu + self.times.reshape((T,)+d*(1,))*nu # space-time density
+        # rho inizialized at L2 interpolation
         self.m = np.zeros((self.d,) + spacetime_grid_shape) # space time vector field
         self.M = np.concatenate((self.rho[np.newaxis,...], self.m)) # the target unknown
 
@@ -52,6 +55,7 @@ class TransportProblem:
         self.c = np.concatenate((self.a[np.newaxis,...], self.b)) # NEED UPDATE # parameters of the Benamou functional 
 
         self.tau=tau
+        print("TransportProblem object initialized.")
 
     def __str__(self):
         "print class properties"
@@ -68,35 +72,46 @@ class TransportProblem:
         return
     
     def projection_step(self):
+        a=self.a
+        b=self.b
         alpha_beta = self.nabla_phi + self.M / self.tau
-        tol = 1e-4
+        tol = 1e-8
         if np.max(alpha_beta) <= 0+tol: # already in the set
             return
-        
-        maxiter = 1 # TODO: to be tuned
+        f = lambda t,alpha,beta: (alpha-0.5*t)*(1+0.5*t)**2 + 0.5*beta**2
+        df = lambda t,alpha: (0.5*t+1)*(-0.75*t+alpha-0.5) # derivative
+        maxiter = 50 # TODO: to be tuned
         nbr_maxiter_reached = 0
         # iter on the grid:
         for index in tqdm(np.ndindex(self.spacetime_grid_shape),total=np.prod(self.spacetime_grid_shape)): # grid-wise
+            temps = time()
             alpha = alpha_beta[0][index]
             beta = np.linalg.norm(alpha_beta[1:][(...,*index)], axis=0) # make it a 2D problem
-            f = lambda t: (alpha-0.5*t)*(1+0.5*t)**2 + 0.5*beta**2
-            df = lambda t: (0.5*t+1)*(-0.75*t+alpha-0.5) # derivative
 
             t = (alpha-0.5)*4/3 + 100 # initialize t so that it is far from the local max
             i=0
+            im_f = f(t,alpha,beta)
             # Newton method:
-            while np.abs(f(t)) > tol and i < maxiter:
-                t = t - f(t)/df(t) # newton step
+            #print(time()-temps,end=" ")
+            #temps = time()
+            while np.abs(im_f) > tol and i < maxiter:
+                t = t - im_f/df(t,alpha) # newton step
+                im_f = f(t,alpha,beta)
                 i=i+1
+            #print(time()-temps,end=" ")
+            #temps = time()
             if i==maxiter:
                 nbr_maxiter_reached = nbr_maxiter_reached + 1
                 warn("Max number of iterations reached in Newton's method.")
             # Update a and b
-            self.a[index] = alpha - 1/2*t # update a
-            self.b[(...,*index)] = alpha_beta[1:][(...,*index)]/(1/2*t+1) # update b
-            self.update_c()
-            assert self.a[index] + 1/2*np.sum(alpha_beta[1:][(...,*index)]**2, axis=0) <= 0 + tol
-            self.a[index] = - 1/2*np.sum(alpha_beta[1:][(...,*index)]**2, axis=0)
+            a[index] = alpha - 1/2*t # update a
+            b[(...,*index)] = alpha_beta[1:][(...,*index)]/(1/2*t+1) # update b
+            # assert self.a[index] + 1/2*np.sum(alpha_beta[1:][(...,*index)]**2, axis=0) <= 0 + tol
+            a[index] = - 1/2*np.sum(alpha_beta[1:][(...,*index)]**2, axis=0)
+           # print(time()-temps)
+        self.a=a
+        self.b=b
+        self.update_c()
 
         if nbr_maxiter_reached > 0:
             warn("Max number of iterations reached in Newton's method ("+str(nbr_maxiter_reached)+" times).")
@@ -108,6 +123,36 @@ class TransportProblem:
         self.M = self.M - self.tau*(self.c - self.nabla_phi)
         self.update_rho_m()
         print("Dual step done.")
+
+    def residual(self):
+        return self.nabla_phi[0] + 0.5 * np.sum(self.nabla_phi[1:]**2,axis=0)
+    def criterium(self):
+        try:
+            return np.sum(self.rho * self.residual()) / np.sum(self.rho * np.sum(self.nabla_phi[1:]**2,axis=0))
+        except ZeroDivisionError:
+            warn("Division by zero in criterium (rho * nabla_phi = 0), infinity returned.")
+            return np.inf
+    def solve(self,tol=1e-5,maxiter=100):
+        i = 0
+        condition = i < maxiter
+        while condition:
+            self.poisson_step()
+            self.projection_step()
+            self.dual_step()
+            i = i + 1
+            condition = self.criterium < tol and iter < maxiter
+        crit = self.criterium()
+        if crit < tol:
+            print("Benamou-Brenier method converged to tolerance.")
+        else:
+           print("Benamou-Brenier method stopped at the maximum number of iterations, with criterium =", crit, ">",tol ,".")
+        return
+    
+    def plot(self,i_time):
+        fig = plt.contour(self.rho[i_time])
+        plt.show()
+        return fig
+
 
     def k(rho,m): # uselfull?
         tol = 1e-7

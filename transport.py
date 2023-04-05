@@ -5,6 +5,20 @@ from warnings import warn
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
+
+def random_gaussian_parameters(d,rng):
+    """Compute a random pair of mean and covariance, in dimension d.
+    (could use scipy.stats.random_correlation)
+    """
+    mean = rng.normal(size=d)
+    A = rng.normal(size=(d,d))
+    ii=np.arange(d)
+    jj=np.arange(d)[:,np.newaxis]
+    A[ii-jj<0] = 0
+    A[ii-jj==0] = np.abs(A[ii-jj==0])
+    cov = A.T @ A
+    return mean, cov
+
 def gaussian_transport(mean1, cov1, mean2, cov2):
     ''' Compute the the Wasserstein distance bewteen two gaussian measure,
         and its associated optimal transport map. '''
@@ -21,7 +35,7 @@ def gaussian_transport(mean1, cov1, mean2, cov2):
 
 def gaussian_discreatization(mean1, cov1, mean2, cov2, n, rng):
     rng = np.random.default_rng(4321)
-    x = rng.multivariate_normal(mean1, cov1, size=n)
+    x = rng.multivariate_normal(mean1, cov1, size=n) # use scipy.stats.qmc.MultivariateNormalQMC ?
     y = rng.multivariate_normal(mean2, cov2, size=n)
     C = np.sum((x[:,np.newaxis,:] - y[np.newaxis,:,:])**2, axis=2) / n
     return x, y, C
