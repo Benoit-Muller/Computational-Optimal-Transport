@@ -6,6 +6,7 @@ import warnings
 from time import time
 from warnings import warn
 from tqdm.notebook import tqdm # to display loading bars
+from matplotlib.widgets import Slider
 
 class TransportProblem:
     def __init__(self,mesh,mu,nu,T,tau=1):
@@ -64,7 +65,7 @@ class TransportProblem:
     def update_c(self):
          " Update c according to a and b. "
          self.c = np.concatenate((self.a[np.newaxis,...], self.b))
-         
+
     def update_rho_m(self):
         " Update rho and m according to M. "
         self.rho = self.M[0]
@@ -161,12 +162,17 @@ class TransportProblem:
            print("Benamou-Brenier method stopped at the maximum number of iterations, with criterium =", crit, ">",tol ,".")
         return
     
-    def plot(self,i_time):
-        " Plot rho at desired time index. "
-        fig = plt.contour(self.rho[i_time])
+    def plot(self):
+        " plot rho[i] with a slider for i. Use <%matplotlib>, and turn back to <%matplotlib inline> after. "
+        fig, (ax1,ax2) = plt.subplots(2)
+        self.s = Slider(ax = ax2, label = 'value', valmin = 0, valmax = self.T-1, valinit = 1)
+        def update(val):
+            value=int(self.s.val)
+            ax1.cla()
+            ax1.contour(self.rho[value])
+        self.s.on_changed(update)
+        update(0)
         plt.show()
-        return fig
-
 
     def k(rho,m): # uselfull?
         tol = 1e-7
