@@ -186,7 +186,3 @@ class TransportProblem:
                 return np.inf
         if rho <= -tol:
             return np.inf
-
-
-
-        
