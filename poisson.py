@@ -16,22 +16,7 @@ msh = mesh.create_box(MPI.COMM_WORLD,[[0.0,0.0,0.0], [1.0, 1.0, 1.0]], [n, n, n]
 V = fem.FunctionSpace(msh, ("CG", 1)) # the space of functions
  
 in_neumann_boundary = lambda x: np.isclose(x[0],0) | np.isclose(x[0],1)
-out_neumann_boundary = lambda x: ~ in_neumann_boundary(x)
-boundaries = [(1, in_neumann_boundary), (2, out_neumann_boundary)]
 
-
-facet_indices, facet_markers = [], []
-fdim = msh.topology.dim - 1
-for (marker, locator) in boundaries:
-    facets = locate_entities(msh, fdim, locator)
-    facet_indices.append(facets)
-    facet_markers.append(np.full_like(facets, marker))
-facet_indices = np.hstack(facet_indices).astype(np.int32)
-facet_markers = np.hstack(facet_markers).astype(np.int32)
-sorted_facets = np.argsort(facet_indices)
-facet_tag = meshtags(msh, fdim, facet_indices[sorted_facets], facet_markers[sorted_facets])
-
-#ds = Measure("ds", domain=msh, subdomain_data=facet_tag)
 
 # Variational Problem
 u = ufl.TrialFunction(V)
