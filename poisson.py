@@ -1,56 +1,77 @@
-print("###RUN###")
+# implementation of the 3D poisson equation with one heterogenous Neumann and two periodic bc.
 import numpy as np
+import scipy as sp
+from scipy import sparse
+import matplotlib.pyplot as plt
+from scipy.sparse.linalg import spsolve
 
-import ufl
-import dolfinx
-from dolfinx import mesh, fem, io, plot
-from dolfinx.mesh import locate_entities_boundary, meshtags, locate_entities
-from ufl import ds, dx, grad, inner, Measure
-# import dolfinx_mpc
+def laplacian_matrix(n):
+    Ad = sparse.diags([1, -2, 1], [-1, 0, 1], shape=(n, n))
+    Ap = Ad.toarray()
+    Ap[0,-1], Ap[-1,0] = 1, 1
+    Ap = sparse.dia_matrix(Ap)
+    An = Ad.toarray()
+    An[0,1], An[-1,-2] = 2, 2
+    An = sparse.dia_matrix(An)
+    I = sparse.eye(n)
+    D2x = sparse.kron(I,sparse.kron(I,An))
+    D2y = sparse.kron(I,sparse.kron(Ap,I))
+    D2z = sparse.kron(Ap,sparse.kron(I,I))
+    A = D2x + D2y + D2z
+    return A
 
-from mpi4py import MPI
-from petsc4py.PETSc import ScalarType
+def extend(g):
+    n = np.shape(g)[1]
+    G = np.zeros((n,n,n))
+    G[[0,-1]] = g
+    return G
 
-n=10 # discretization number
-msh = mesh.create_box(MPI.COMM_WORLD,[[0.0,0.0,0.0], [1.0, 1.0, 1.0]], [n, n, n], mesh.CellType.hexahedron)
-V = fem.FunctionSpace(msh, ("CG", 1)) # the space of functions
- 
-in_neumann_boundary = lambda x: np.isclose(x[0],0) | np.isclose(x[0],1)
+def normalize_lagrange(A,b):
+    n=len(b)
+    one = sparse.bsr_matrix(np.ones((n,1)))
+    A = sparse.vstack((A, one.T))
+    one_zero = sparse.vstack((one, sparse.bsr_matrix([0])))
+    A = sparse.hstack((A, one_zero))
+    b = np.hstack((b, [0]))
+    return A,b
 
+def normalize_integral(b):
+    return b - np.mean(b)
 
-# Variational Problem
-u = ufl.TrialFunction(V)
-v = ufl.TestFunction(V)
-x = ufl.SpatialCoordinate(msh)
-f = 10 * ufl.exp(-((x[0] - 0.5) ** 2 + (x[1] - 0.5) ** 2) / 0.02)
-g = ufl.sin(5 * x[0]) + ufl.sin(3 * x[1]) + ufl.sin(2 * x[2])
-a = inner(grad(u), grad(v)) * dx
-L = inner(f, v) * dx + inner(g, v) * ds
+def poisson(f,g,A=None):
+    n = np.shape(f)[0]
+    order = "F"
+    if A is None:
+        A = laplacian_matrix(n)
+    A = A * n**2
+    b = (f + 2*n*extend(g)).flatten(order)
 
+    b = normalize_integral(b)
+    u_vect = spsolve(A,b)
+    u_vect = normalize_integral(u_vect)
+    #U= U[0:-1]
+    #l = U[-1]
+    u = u_vect.reshape((n,n,n),order=order)
+    return u
 
-problem = fem.petsc.LinearProblem(a, L, petsc_options={"ksp_type": "preonly", "pc_type": "lu"})
-uh = problem.solve()
+def derivative_matrices(n):
+    Ad = sparse.diags([-0.5, 0, 0.5], [-1, 0, 1], shape=(n, n))
+    Ap = Ad.toarray()
+    Ap[0,-1], Ap[-1,0] = -1, 1
+    Ap = sparse.dia_matrix(Ap)
+    An = Ad.toarray()
+    An[0,0], An[-1,-1] = -1, 1
+    An = sparse.dia_matrix(An)
+    return An, Ap
 
+def divergence(field,An,Ap):
+    d = np.einsum("ij,jkl->ikl",An.toarray(),field[0])
+    d = d + np.einsum("ij,kjl->kil",Ap.toarray(),field[1])
+    d = d + np.einsum("ij,klj->kli",Ap.toarray(),field[2])
+    return d
 
-# plot option 1:
-try:
-    import pyvista
-    cells, types, x = plot.create_vtk_mesh(V)
-    grid = pyvista.UnstructuredGrid(cells, types, x)
-    grid.point_data["u"] = uh.x.array.real
-    grid.set_active_scalars("u")
-    plotter = pyvista.Plotter()
-    plotter.add_mesh(grid, show_edges=True)
-    warped = grid.warp_by_scalar()
-    plotter.add_mesh(warped)
-    plotter.show(screenshot='demo_poisson.png')
-except ModuleNotFoundError:
-    print("'pyvista' is required to visualise the solution")
-    print("Install 'pyvista' with pip: 'python3 -m pip install pyvista'")
-
-
-""" unaswered questions:
-- how to create functions in function space from data
-    -> see https://fenicsproject.discourse.group/t/mapping-2d-numpy-array-into-dolfinx-function/7487/4
-
-"""
+def gradient(f,An,Ap):
+    g0 = np.einsum("ij,jkl->ikl",An.toarray(),f)
+    g1 = np.einsum("ij,kjl->kil",Ap.toarray(),f)
+    g2 = np.einsum("ij,klj->kli",Ap.toarray(),f)
+    return np.stack((g0,g1,g2))

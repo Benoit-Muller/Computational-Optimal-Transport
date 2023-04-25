@@ -5,11 +5,12 @@ import matplotlib.pyplot as plt
 import warnings
 from time import time
 from warnings import warn
-from tqdm.notebook import tqdm # to display loading bars
+from tqdm.notebook import tqdm,trange # to display loading bars
 from matplotlib.widgets import Slider
+from poisson import laplacian_matrix,poisson,derivative_matrices,divergence,gradient
 
 class TransportProblem:
-    def __init__(self,mesh,mu,nu,T,tau=1):
+    def __init__(self,mesh,mu,nu,T,tau=1,display=True):
         """
         With N = N_1*...*N_d discretization
         Inputs:
@@ -30,6 +31,8 @@ class TransportProblem:
         """
         # creation of shapes tuples, last dimensions always contain space and time:
         (d,*space_grid_shape) = mesh.shape
+        if d!=2:
+            warn(str(d)+"D space, poisson step not implemented.")
         space_grid_shape = tuple(space_grid_shape)
         if space_grid_shape != mu.shape or space_grid_shape != nu.shape:
             Exception("The space grid dimensions of the mesh doesn't match the mesures")
@@ -50,13 +53,16 @@ class TransportProblem:
 
         self.phi = np.zeros(spacetime_grid_shape) # test function, wasserstein potential
         self.nabla_phi = np.zeros((d+1,) + spacetime_grid_shape) # space-time gradient of phi
+        self.laplacian_matrix = laplacian_matrix(space_grid_shape[0])
+        self.Ap, self.An = derivative_matrices(space_grid_shape[0])
 
         self.a = np.zeros(spacetime_grid_shape)
         self.b = np.zeros((d,)+ spacetime_grid_shape)
         self.c = np.concatenate((self.a[np.newaxis,...], self.b)) # NEED UPDATE # parameters of the Benamou functional 
 
         self.tau=tau
-        print("TransportProblem object initialized.")
+        if display:
+            print("TransportProblem object initialized.")
 
     def __str__(self):
         " Print all class properties. "
@@ -71,13 +77,19 @@ class TransportProblem:
         self.rho = self.M[0]
         self.m = self.M[1:]
 
-    def poisson_step():
+    def poisson_step(self):
         """  Compute the solution to tau*laplacian(phi) = div(tau*c-M) ,
         with time-Neumann conditions    tau * d/dt phi(0,.) = mu - rho(0,.) + tau * a (0,.)
                                         tau * d/dt phi(1,.) = nu - rho(1,.) + tau * a (1,.) """
-        return
+        if self.d!=3:
+            Exception("Poisson step is implemented only for a 2D space, not for a "
+                      + str(self.d) + "D space.")
+        g = np.stack((self.mu, self.nu)) - self.rho[[0,-1]] + self.tau*self.a[[0,-1]]
+        f = divergence(self.tau*self.c-self.M, self.An, self.Ap)
+        self.phi = poisson(f,g,self.laplacian_matrix)
+        self.nabla_phi = gradient(self.phi,self.An,self.Ap)
     
-    def projection_step(self):
+    def projection_step(self,display=False):
         " Minimize c, computed as the orthogonal projection of nabla_phi+M/tau-c to the parabola K = {(a,b) st. a+|b|^2 < 0}. "
         a=self.a
         b=self.b
@@ -90,7 +102,10 @@ class TransportProblem:
         maxiter = 50 # TODO: to be tuned
         nbr_maxiter_reached = 0
         # iter on the grid:
-        for index in tqdm(np.ndindex(self.spacetime_grid_shape),total=np.prod(self.spacetime_grid_shape)): # grid-wise
+        iterator = np.ndindex(self.spacetime_grid_shape)
+        if display:
+            iterator = tqdm(iterator,total=np.prod(self.spacetime_grid_shape))
+        for index in iterator: # grid-wise
             temps = time()
             alpha = alpha_beta[0][index]
             beta = np.linalg.norm(alpha_beta[1:][(...,*index)], axis=0) # make it a 2D problem
@@ -122,15 +137,16 @@ class TransportProblem:
 
         if nbr_maxiter_reached > 0:
             warn("Max number of iterations reached in Newton's method ("+str(nbr_maxiter_reached)+" times).")
-        else:
+        elif display:
             print("Projection step converged to tolerance.")
         return
     
-    def dual_step(self):
+    def dual_step(self,display=False):
         " Compute the dual step, a gradient step of the dual variable M."
         self.M = self.M - self.tau*(self.c - self.nabla_phi)
         self.update_rho_m()
-        print("Dual step done.")
+        if display:
+            print("Dual step done.")
 
     def residual(self):
         " Compute the residual of the Hamilton-Jacobi equation "
@@ -139,7 +155,7 @@ class TransportProblem:
     def criterium(self):
         " Normalized residual "
         try:
-            return np.sum(self.rho * self.residual()) / np.sum(self.rho * np.sum(self.nabla_phi[1:]**2,axis=0))
+            return np.sum(self.rho * np.abs(self.residual())) / np.sum(self.rho * np.sum(self.nabla_phi[1:]**2,axis=0))
         except ZeroDivisionError:
             warn("Division by zero in criterium (rho * nabla_phi = 0), infinity returned.")
             return np.inf
@@ -147,19 +163,17 @@ class TransportProblem:
     def solve(self,tol=1e-5,maxiter=100):
         """ Proceed augmented Lagrandgian method by doing iteratively the three steps poisson-projection-dual,
         until convergence is detected by residual or maxiter. """
-        i = 0
-        condition = i < maxiter
-        while condition:
+        for i in trange(maxiter):
+            crit = self.criterium()
+            if crit < tol:
+                break
             self.poisson_step()
             self.projection_step()
             self.dual_step()
-            i = i + 1
-            condition = self.criterium < tol and iter < maxiter
-        crit = self.criterium()
         if crit < tol:
-            print("Benamou-Brenier method converged to tolerance.")
+            print("Benamou-Brenier method converged to tolerance with criterium = "+str(crit))
         else:
-           print("Benamou-Brenier method stopped at the maximum number of iterations, with criterium =", crit, ">",tol ,".")
+           print("Benamou-Brenier method stopped at the maximum number of iterations, with criterium = ", crit, ">",tol ,".")
         return
     
     def plot(self):
