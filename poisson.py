@@ -23,7 +23,7 @@ def laplacian_matrix(n):
 def extend(g):
     n = np.shape(g)[1]
     G = np.zeros((n,n,n))
-    G[[0,-1]] = g
+    G[[-1,0]] = g # ?
     return G
 
 def normalize_lagrange(A,b):
@@ -35,6 +35,13 @@ def normalize_lagrange(A,b):
     b = np.hstack((b, [0]))
     return A,b
 
+def add_mean_condition(A,b):
+    n = len(b)
+    one = sparse.bsr_matrix(np.ones((1,n)))
+    A = sparse.vstack((A, one))
+    b = np.hstack((b, [0]))
+    return A,b
+
 def normalize_integral(b):
     return b - np.mean(b)
 
@@ -43,16 +50,18 @@ def poisson(f,g,A=None):
     order = "F"
     if A is None:
         A = laplacian_matrix(n)
-    A = A * n**2
-    b = (f + 2*n*extend(g)).flatten(order)
+    b = (f + 2*n*extend(g)).flatten(order) / n**2
 
-    b = normalize_integral(b)
-    u_vect = spsolve(A,b)
-    u_vect = normalize_integral(u_vect)
-    #U= U[0:-1]
-    #l = U[-1]
+    #b = b - np.mean(b)
+    #u_vect = spsolve(A,b)
+    #u_vect = u_vect - np.mean(u_vect) 
+
+    b = b - np.mean(b)
+    A,b = add_mean_condition(A,b)
+    u_vect,res,rank,s = np.linalg.lstsq(A.toarray(),b)
+    
     u = u_vect.reshape((n,n,n),order=order)
-    return u
+    return u,A,b,u_vect
 
 def derivative_matrices(n):
     Ad = sparse.diags([-0.5, 0, 0.5], [-1, 0, 1], shape=(n, n))
