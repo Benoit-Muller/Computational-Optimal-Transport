@@ -4,26 +4,22 @@ import scipy as sp
 from scipy import sparse
 import matplotlib.pyplot as plt
 from scipy.sparse.linalg import spsolve
+from matplotlib.widgets import Slider
 
 def laplacian_matrix(n):
-    Ad = sparse.diags([1, -2, 1], [-1, 0, 1], shape=(n, n))
-    Ap = Ad.toarray()
-    Ap[0,-1], Ap[-1,0] = 1, 1
-    Ap = sparse.dia_matrix(Ap)
-    An = Ad.toarray()
-    An[0,1], An[-1,-2] = 2, 2
-    An = sparse.dia_matrix(An)
-    I = sparse.eye(n)
-    D2x = sparse.kron(I,sparse.kron(I,An))
-    D2y = sparse.kron(I,sparse.kron(Ap,I))
-    D2z = sparse.kron(Ap,sparse.kron(I,I))
+    An,Ap = derivative_matrices(n)
+    In = sparse.eye(n)
+    Ip = sparse.eye(n-1)
+    D2x = sparse.kron(Ip,sparse.kron(Ip,An))
+    D2y = sparse.kron(Ip,sparse.kron(Ap,In))
+    D2z = sparse.kron(Ap,sparse.kron(Ip,In))
     A = D2x + D2y + D2z
     return A
 
 def extend(g):
     n = np.shape(g)[1]
     G = np.zeros((n,n,n))
-    G[[-1,0]] = g # ?
+    G[0],G[-1] = g[1],g[0] # ?
     return G
 
 def normalize_lagrange(A,b):
@@ -36,8 +32,8 @@ def normalize_lagrange(A,b):
     return A,b
 
 def add_mean_condition(A,b):
-    n = len(b)
-    one = sparse.bsr_matrix(np.ones((1,n)))
+    N = len(b)
+    one = sparse.bsr_matrix(np.ones((1,N)))
     A = sparse.vstack((A, one))
     b = np.hstack((b, [0]))
     return A,b
@@ -50,7 +46,9 @@ def poisson(f,g,A=None):
     order = "F"
     if A is None:
         A = laplacian_matrix(n)
-    b = (f + 2*n*extend(g)).flatten(order) / n**2
+    g_contribution = extend(g)[:,0:-1,0:-1]
+    g_contribution[-1] = - g_contribution[-1]
+    b = (f[:,0:-1,0:-1] + 2*n*g_contribution).flatten(order) / n**2
 
     #b = b - np.mean(b)
     #u_vect = spsolve(A,b)
@@ -60,16 +58,21 @@ def poisson(f,g,A=None):
     A,b = add_mean_condition(A,b)
     u_vect,res,rank,s = np.linalg.lstsq(A.toarray(),b)
     
-    u = u_vect.reshape((n,n,n),order=order)
-    return u,A,b,u_vect
+    u = np.zeros((n,n,n))
+    u[:,0:-1,0:-1] = u_vect.reshape((n,n-1,n-1),order=order)
+    u[:,-1,0:-1] = u[:,0,0:-1]
+    u[:,:,-1] = u[:,:,0]
+    return u,A,b,u_vect,res,rank,s
 
 def derivative_matrices(n):
-    Ad = sparse.diags([-0.5, 0, 0.5], [-1, 0, 1], shape=(n, n))
-    Ap = Ad.toarray()
-    Ap[0,-1], Ap[-1,0] = -1, 1
+    Ap = sparse.diags([1, -2, 1], [-1, 0, 1], shape=(n-1, n-1))
+    Ap = Ap.toarray()
+    Ap[0,-1], Ap[-1,0] = 1, 1
     Ap = sparse.dia_matrix(Ap)
-    An = Ad.toarray()
-    An[0,0], An[-1,-1] = -1, 1
+
+    An = sparse.diags([1, -2, 1], [-1, 0, 1], shape=(n, n))
+    An = An.toarray()
+    An[0,1], An[-1,-2] = 2, 2
     An = sparse.dia_matrix(An)
     return An, Ap
 
@@ -84,3 +87,16 @@ def gradient(f,An,Ap):
     g1 = np.einsum("ij,kjl->kil",Ap.toarray(),f)
     g2 = np.einsum("ij,klj->kli",Ap.toarray(),f)
     return np.stack((g0,g1,g2))
+
+def plot_slider(u):
+    " plot rho[i] with a slider for i. Use <%matplotlib>, and turn back to <%matplotlib inline> after. "
+    fig, (ax1,ax2) = plt.subplots(2)
+    s = Slider(ax = ax2, label = 'value', valmin = 0, valmax = np.shape(u)[0], valinit = 1)
+    def update(val):
+        value=int(s.val)
+        ax1.cla()
+        ax1.contour(u[value])
+    s.on_changed(update)
+    update(0)
+    plt.show()
+    return s
