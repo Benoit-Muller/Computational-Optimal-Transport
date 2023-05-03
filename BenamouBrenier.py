@@ -176,17 +176,26 @@ class TransportProblem:
            print("Benamou-Brenier method stopped at the maximum number of iterations, with criterium = ", crit, ">",tol ,".")
         return
     
-    def plot(self):
+    def plot(self,t=None):
         " plot rho[i] with a slider for i. Use <%matplotlib>, and turn back to <%matplotlib inline> after. "
-        fig, (ax1,ax2) = plt.subplots(2)
-        self.s = Slider(ax = ax2, label = 'value', valmin = 0, valmax = self.T-1, valinit = 1)
-        def update(val):
-            value=int(self.s.val)
-            ax1.cla()
-            ax1.contour(self.rho[value])
-        self.s.on_changed(update)
-        update(0)
-        plt.show()
+        if t is None:
+            fig, (ax1,ax2) = plt.subplots(2)
+            self.s = Slider(ax = ax2, label = 'value', valmin = 0, valmax = self.T-1, valinit = 1)
+            def update(val):
+                value=int(self.s.val)
+                ax1.cla()
+                ax1.contour(self.rho[value])
+            self.s.on_changed(update)
+            update(0)
+            plt.show()
+            return fig
+        else:
+            tt = np.atleast_1d(t)
+            for t in tt:
+                plt.figure()
+                plt.contour(self.rho[int(t*(self.T-1))])
+                plt.title("t="+str(t))
+                plt.colorbar()
 
     def k(rho,m): # uselfull?
         tol = 1e-7
