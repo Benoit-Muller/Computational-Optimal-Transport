@@ -47,8 +47,9 @@ class TransportProblem:
         self.T = T
         self.times = np.linspace(0,1,T)
         # rho inizialized at L2 interpolation (pointwise):
-        #self.rho = (1-self.times.reshape((T,)+d*(1,)))*mu + self.times.reshape((T,)+d*(1,))*nu # space-time density
-        self.rho = np.ones()
+        self.rho = (1-self.times.reshape((T,)+d*(1,)))*mu + self.times.reshape((T,)+d*(1,))*nu # space-time density
+        eps = 0.1
+        self.rho = (1-eps)*self.rho + eps/np.prod(spacetime_grid_shape)
         self.m = np.zeros((self.d,) + spacetime_grid_shape) # space time vector field
         self.M = np.concatenate((self.rho[np.newaxis,...], self.m)) # the target unknown
 
@@ -161,22 +162,24 @@ class TransportProblem:
             warn("Division by zero in criterium (rho * nabla_phi = 0), infinity returned.")
             return np.inf
         
-    def solve(self,tol=1e-5,maxiter=100):
+    def solve(self,tol=1e-7,maxiter=100):
         """ Proceed augmented Lagrandgian method by doing iteratively the three steps poisson-projection-dual,
         until convergence is detected by residual or maxiter. """
+        criteria=[]
         for i in trange(maxiter):
             self.poisson_step()
             self.projection_step()
             self.dual_step()
-            #crit = self.criterium()
+            crit = self.criterium()
             res = np.max(np.abs(self.residual()))
+            criteria.append(crit)
             if res < tol:
                 break
         if res < tol:
-            print("Benamou-Brenier method converged to tolerance with res = "+str(res))
+            print("Benamou-Brenier method converged to tolerance with criterium = "+str(crit))
         else:
-           print("Benamou-Brenier method stopped at the maximum number of iterations, with criterium = ", crit, ">",tol ,".")
-        return
+           print("Benamou-Brenier method stopped at the maximum number of iterations, with criterium = "+str(crit)+">"+str(tol))
+        return criteria
     
     def plot(self,t=None):
         " plot rho[i] with a slider for i. Use <%matplotlib>, and turn back to <%matplotlib inline> after. "
@@ -195,7 +198,7 @@ class TransportProblem:
             tt = np.atleast_1d(t)
             for t in tt:
                 plt.figure()
-                plt.contour(self.rho[int(t*(self.T-1))])
+                plt.contour(np.arange(self.T)/(self.T-1),np.arange(self.T)/(self.T-1),self.rho[int(t*(self.T-1))])
                 plt.title("t="+str(t))
                 plt.colorbar()
 
