@@ -47,7 +47,8 @@ class TransportProblem:
         self.T = T
         self.times = np.linspace(0,1,T)
         # rho inizialized at L2 interpolation (pointwise):
-        self.rho = (1-self.times.reshape((T,)+d*(1,)))*mu + self.times.reshape((T,)+d*(1,))*nu # space-time density
+        #self.rho = (1-self.times.reshape((T,)+d*(1,)))*mu + self.times.reshape((T,)+d*(1,))*nu # space-time density
+        self.rho = np.ones()
         self.m = np.zeros((self.d,) + spacetime_grid_shape) # space time vector field
         self.M = np.concatenate((self.rho[np.newaxis,...], self.m)) # the target unknown
 
@@ -84,8 +85,8 @@ class TransportProblem:
         if self.d!=3:
             Exception("Poisson step is implemented only for a 2D space, not for a "
                       + str(self.d) + "D space.")
-        g = np.stack((self.mu, self.nu)) - self.rho[[-1,0]] + self.tau*self.a[[-1,0]]
-        f = divergence(self.tau*self.c-self.M, self.An, self.Ap)
+        g = np.stack((self.mu, self.nu))/self.tau - self.rho[[0,-1]]/self.tau + self.a[[0,-1]]
+        f = divergence(self.c-self.M/self.tau, self.An, self.Ap)
         self.phi,_,_,_,_,_,_ = poisson(f,g,self.laplacian_matrix)
         self.nabla_phi = gradient(self.phi,self.An,self.Ap)
     
@@ -164,14 +165,15 @@ class TransportProblem:
         """ Proceed augmented Lagrandgian method by doing iteratively the three steps poisson-projection-dual,
         until convergence is detected by residual or maxiter. """
         for i in trange(maxiter):
-            crit = self.criterium()
-            if crit < tol:
-                break
             self.poisson_step()
             self.projection_step()
             self.dual_step()
-        if crit < tol:
-            print("Benamou-Brenier method converged to tolerance with criterium = "+str(crit))
+            #crit = self.criterium()
+            res = np.max(np.abs(self.residual()))
+            if res < tol:
+                break
+        if res < tol:
+            print("Benamou-Brenier method converged to tolerance with res = "+str(res))
         else:
            print("Benamou-Brenier method stopped at the maximum number of iterations, with criterium = ", crit, ">",tol ,".")
         return
