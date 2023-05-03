@@ -54,7 +54,7 @@ class TransportProblem:
         self.phi = np.zeros(spacetime_grid_shape) # test function, wasserstein potential
         self.nabla_phi = np.zeros((d+1,) + spacetime_grid_shape) # space-time gradient of phi
         self.laplacian_matrix = laplacian_matrix(space_grid_shape[0])
-        self.Ap, self.An = derivative_matrices(space_grid_shape[0])
+        self.An, self.Ap = derivative_matrices(space_grid_shape[0])
 
         self.a = np.zeros(spacetime_grid_shape)
         self.b = np.zeros((d,)+ spacetime_grid_shape)
@@ -84,9 +84,9 @@ class TransportProblem:
         if self.d!=3:
             Exception("Poisson step is implemented only for a 2D space, not for a "
                       + str(self.d) + "D space.")
-        g = np.stack((self.mu, self.nu)) - self.rho[[0,-1]] + self.tau*self.a[[0,-1]]
+        g = np.stack((self.mu, self.nu)) - self.rho[[-1,0]] + self.tau*self.a[[-1,0]]
         f = divergence(self.tau*self.c-self.M, self.An, self.Ap)
-        self.phi = poisson(f,g,self.laplacian_matrix)
+        self.phi,_,_,_,_,_,_ = poisson(f,g,self.laplacian_matrix)
         self.nabla_phi = gradient(self.phi,self.An,self.Ap)
     
     def projection_step(self,display=False):

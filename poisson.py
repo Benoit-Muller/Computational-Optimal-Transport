@@ -77,16 +77,22 @@ def derivative_matrices(n):
     return An, Ap
 
 def divergence(field,An,Ap):
-    d = np.einsum("ij,jkl->ikl",An.toarray(),field[0])
-    d = d + np.einsum("ij,kjl->kil",Ap.toarray(),field[1])
-    d = d + np.einsum("ij,klj->kli",Ap.toarray(),field[2])
+    d = np.empty_like(field[0])
+    d[:,0:-1,0:-1] = np.einsum("ij,jkl->ikl",An.toarray(),field[0,:,0:-1,0:-1])
+    d[:,0:-1,0:-1] = d[:,0:-1,0:-1] + np.einsum("ij,kjl->kil",Ap.toarray(),field[1,:,0:-1,0:-1])
+    d[:,0:-1,0:-1] = d[:,0:-1,0:-1] + np.einsum("ij,klj->kli",Ap.toarray(),field[2,:,0:-1,0:-1])
+    d[:,-1,0:-1] = d[:,0,0:-1]
+    d[:,:,-1] = d[:,:,0]
     return d
 
 def gradient(f,An,Ap):
-    g0 = np.einsum("ij,jkl->ikl",An.toarray(),f)
-    g1 = np.einsum("ij,kjl->kil",Ap.toarray(),f)
-    g2 = np.einsum("ij,klj->kli",Ap.toarray(),f)
-    return np.stack((g0,g1,g2))
+    g = np.zeros((3,)+np.shape(f))
+    g[0,:,0:-1,0:-1] = np.einsum("ij,jkl->ikl",An.toarray(),f[:,0:-1,0:-1])
+    g[1,:,0:-1,0:-1] = np.einsum("ij,kjl->kil",Ap.toarray(),f[:,0:-1,0:-1])
+    g[2,:,0:-1,0:-1] = np.einsum("ij,klj->kli",Ap.toarray(),f[:,0:-1,0:-1])
+    g[:,:,-1,0:-1] = g[:,:,0,0:-1]
+    g[:,:,:,-1] = g[:,:,:,0]
+    return g
 
 def plot_slider(u):
     " plot rho[i] with a slider for i. Use <%matplotlib>, and turn back to <%matplotlib inline> after. "
