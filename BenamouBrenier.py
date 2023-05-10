@@ -88,7 +88,7 @@ class TransportProblem:
                       + str(self.d) + "D space.")
         g = np.stack((self.mu, self.nu))/self.tau - self.rho[[0,-1]]/self.tau + self.a[[0,-1]]
         f = divergence(self.c-self.M/self.tau, self.An, self.Ap)
-        self.phi,_,_,_,_,_,_ = poisson(f,g,self.laplacian_matrix)
+        self.phi,_,_,_ = poisson(f,g,self.laplacian_matrix)
         self.nabla_phi = gradient(self.phi,self.An,self.Ap)
     
     def projection_step(self,display=False):
@@ -143,6 +143,20 @@ class TransportProblem:
             print("Projection step converged to tolerance.")
         return
     
+    def projection_step_bis(self, display=False):
+        alpha_beta = self.nabla_phi + self.M / self.tau
+        alpha,beta = alpha_beta[0], np.sqrt(np.sum(alpha_beta[1:]**2,axis=0))
+        iterator = np.ndindex(self.spacetime_grid_shape)
+        if display:
+            iterator = tqdm(iterator,total=np.prod(self.spacetime_grid_shape))
+        for index in iterator: # grid-wise
+            if np.max(alpha[index] + beta[index]**2/2,) > 0: # already in the set
+                a,b,c = 4-2*alpha[index], 4-8*alpha[index], 4*beta[index]**2-8*alpha[index]
+                t = last_root(a,b,c)
+                self.a[index] = alpha[index] - 1/2*t
+                self.b[(...,*index)] = alpha_beta[1:][(...,*index)]/(1/2*t+1)
+        self.update_c()
+
     def dual_step(self,display=False):
         " Compute the dual step, a gradient step of the dual variable M."
         self.M = self.M - self.tau*(self.c - self.nabla_phi)
@@ -167,9 +181,15 @@ class TransportProblem:
         until convergence is detected by residual or maxiter. """
         criteria=[]
         for i in trange(maxiter):
+            tic = time()
             self.poisson_step()
-            self.projection_step()
+            print("Poisson step:",time()-tic)
+            tic = time()
+            self.projection_step_bis()
+            print("projection step:",time()-tic)
+            tic = time()
             self.dual_step()
+            print("dual step:",time()-tic)
             crit = self.criterium()
             res = np.max(np.abs(self.residual()))
             criteria.append(crit)
@@ -196,11 +216,12 @@ class TransportProblem:
             return fig
         else:
             tt = np.atleast_1d(t)
-            for t in tt:
+            for i,t in enumerate(tt):
                 plt.figure()
                 plt.contour(np.arange(self.T)/(self.T-1),np.arange(self.T)/(self.T-1),self.rho[int(t*(self.T-1))])
                 plt.title("t="+str(t))
                 plt.colorbar()
+                plt.savefig("graphics/rho("+str(i)+").pdf")
 
     def k(rho,m): # uselfull?
         tol = 1e-7
@@ -214,3 +235,19 @@ class TransportProblem:
                 return np.inf
         if rho <= -tol:
             return np.inf
+        
+def last_root(a,b,c):
+    p = b - a**2/3
+    q = a / 27 * (2*a**2 - 9*b) + c
+    delta = (p/3)**3 + (q/2)**2
+    if delta>0:
+        u = np.cbrt(-q/2 + np.sqrt(delta))
+        v = np.cbrt(-q/2 - np.sqrt(delta))
+        x = u + v - a/3
+    elif delta == 0:
+        u = np.cbrt(-q/2)
+        x = 2*np.abs(u) - a/3
+    else:
+        u = (-q/2 + 1j*np.sqrt(-delta))**(1/3)
+        x = 2*np.real(u) - a/3
+    return x

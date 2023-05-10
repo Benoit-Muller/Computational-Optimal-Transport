@@ -37,5 +37,5 @@ def gaussian_discreatization(mean1, cov1, mean2, cov2, n, rng):
     rng = np.random.default_rng(4321)
     x = rng.multivariate_normal(mean1, cov1, size=n) # use scipy.stats.qmc.MultivariateNormalQMC ?
     y = rng.multivariate_normal(mean2, cov2, size=n)
-    C = np.sum((x[:,np.newaxis,:] - y[np.newaxis,:,:])**2, axis=2) / n
+    C = np.sum((x[:,np.newaxis,:] - y[np.newaxis,:,:])**2, axis=2)/n
     return x, y, C

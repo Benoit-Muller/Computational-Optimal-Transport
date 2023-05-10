@@ -50,19 +50,20 @@ def poisson(f,g,A=None):
     g_contribution[-1] = - g_contribution[-1]
     b = (f[:,0:-1,0:-1] + 2*n*g_contribution).flatten(order) / n**2
 
-    #b = b - np.mean(b)
-    #u_vect = spsolve(A,b)
-    #u_vect = u_vect - np.mean(u_vect) 
+    b = b - np.sum(b)
+    A,b = normalize_lagrange(A,b)
+    u_vect = spsolve(A,b)
+    u_vect = u_vect[:-1] 
 
-    b = b - np.mean(b)
-    A,b = add_mean_condition(A,b)
-    u_vect,res,rank,s = np.linalg.lstsq(A.toarray(),b)
+    #b = b - np.sum(b)
+    #A,b = add_mean_condition(A,b)
+    #u_vect,res,rank,s = np.linalg.lstsq(A.toarray(),b)
     
     u = np.zeros((n,n,n))
     u[:,0:-1,0:-1] = u_vect.reshape((n,n-1,n-1),order=order)
     u[:,-1,0:-1] = u[:,0,0:-1]
     u[:,:,-1] = u[:,:,0]
-    return u,A,b,u_vect,res,rank,s
+    return u,A,b,u_vect
 
 def derivative_matrices(n):
     Ap = sparse.diags([1, -2, 1], [-1, 0, 1], shape=(n-1, n-1))
