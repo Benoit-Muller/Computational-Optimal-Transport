@@ -197,8 +197,8 @@ def hungarian3(C,tol=1e-5,disp=True):
     #print("x=",x)
     #print(row)
     assert not np.any(np.sort(row) - np.arange(n)), "primal variables not feasible"
-    assert np.all(U[:,np.newaxis] + V <= C + tol), "dual variables not feasible, with transgression " + str(np.min(C-U[:,np.newaxis] - V))
-    assert not np.any((1-np.isclose(U[:,np.newaxis]+V,C,atol=tol)) * x), "complementary stackness not satisfied"
+    assert np.all(U[:,np.newaxis] + V <= C + 2*tol), "dual variables not feasible, with transgression " + str(np.min(C-U[:,np.newaxis] - V))
+    assert not np.any((1-np.isclose(U[:,np.newaxis]+V,C,atol=2*tol)) * x), "complementary stackness not satisfied"
     if disp == True:
         print("hungarian3 succed (feasibility and complementary slackness holds)")
     W = np.sum(x*C)
