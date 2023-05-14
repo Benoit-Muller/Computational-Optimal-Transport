@@ -203,3 +203,6 @@ def hungarian3(C,tol=1e-5,disp=True):
         print("hungarian3 succed (feasibility and complementary slackness holds)")
     W = np.sum(x*C)
     return row,x,phi,U,V,W
+
+def make_cost_integer(C):
+    

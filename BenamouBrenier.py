@@ -79,7 +79,7 @@ class TransportProblem:
         self.rho = self.M[0]
         self.m = self.M[1:]
 
-    def poisson_step(self):
+    def poisson_step(self,display=False):
         """  Compute the solution to tau*laplacian(phi) = div(tau*c-M) ,
         with time-Neumann conditions    tau * d/dt phi(0,.) = mu - rho(0,.) + tau * a (0,.)
                                         tau * d/dt phi(1,.) = nu - rho(1,.) + tau * a (1,.) """
@@ -90,6 +90,8 @@ class TransportProblem:
         f = divergence(self.c-self.M/self.tau, self.An, self.Ap)
         self.phi,_,_,_ = poisson(f,g,self.laplacian_matrix)
         self.nabla_phi = gradient(self.phi,self.An,self.Ap)
+        if display:
+            print("Poisson step done.")
     
     def projection_step(self,display=False):
         " Minimize c, computed as the orthogonal projection of nabla_phi+M/tau-c to the parabola K = {(a,b) st. a+|b|^2 < 0}. "
@@ -156,6 +158,8 @@ class TransportProblem:
                 self.a[index] = alpha[index] - 1/2*t
                 self.b[(...,*index)] = alpha_beta[1:][(...,*index)]/(1/2*t+1)
         self.update_c()
+        if display:
+            print("Projection step done.")
 
     def dual_step(self,display=False):
         " Compute the dual step, a gradient step of the dual variable M."
@@ -176,28 +180,25 @@ class TransportProblem:
             warn("Division by zero in criterium (rho * nabla_phi = 0), infinity returned.")
             return np.inf
         
-    def solve(self,tol=1e-7,maxiter=100):
+    def solve(self,tol=1e-7,maxiter=100,display=True):
         """ Proceed augmented Lagrandgian method by doing iteratively the three steps poisson-projection-dual,
         until convergence is detected by residual or maxiter. """
         criteria=[]
-        for i in trange(maxiter):
-            tic = time()
+        iterator = range(maxiter)
+        if display:
+            iterator = tqdm(iterator)
+        for i in iterator:
             self.poisson_step()
-            print("Poisson step:",time()-tic)
-            tic = time()
             self.projection_step_bis()
-            print("projection step:",time()-tic)
-            tic = time()
             self.dual_step()
-            print("dual step:",time()-tic)
             crit = self.criterium()
             res = np.max(np.abs(self.residual()))
             criteria.append(crit)
             if res < tol:
                 break
-        if res < tol:
+        if res < tol and display:
             print("Benamou-Brenier method converged to tolerance with criterium = "+str(crit))
-        else:
+        elif display:
            print("Benamou-Brenier method stopped at the maximum number of iterations, with criterium = "+str(crit)+">"+str(tol))
         return criteria
     
