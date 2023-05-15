@@ -205,4 +205,6 @@ def hungarian3(C,tol=1e-5,disp=True):
     return row,x,phi,U,V,W
 
 def make_cost_integer(C):
+    m, M = np.amin(C), np.amax(C)
+    C = (C - m)/M # <C,P> –> (<C,P> - m<C,P>)/ M, 
     return    

@@ -43,3 +43,24 @@ def gaussian_discreatization(mean1, cov1, mean2, cov2, n, rng):
     #y = dist.random(n)
     C = np.sum((x[:,np.newaxis,:] - y[np.newaxis,:,:])**2, axis=2)/n
     return x, y, C
+
+def torus_dist2(x,y):
+    dist = 0
+    for i in range(len(x)):
+        dist += np.min([(x[i]-y[i])**2, (1-np.abs(x[i]-y[i]))**2])
+    return dist
+
+def periodic_gaussian_discreatization(mean1, cov1, mean2, cov2, n, rng):
+    x = rng.multivariate_normal(mean1, cov1, size=n) 
+    y = rng.multivariate_normal(mean2, cov2, size=n)
+    x = x % 1
+    y = y % 1
+    #dist = qmc.MultivariateNormalQMC(mean1, cov1, seed=rng)
+    #x = dist.random(n)
+    #dist = qmc.MultivariateNormalQMC(mean2, cov2, seed=rng)
+    #y = dist.random(n)
+    C = np.zeros((n,n))
+    for i in range(n):
+        for j in range(n):
+            C[i,j] = torus_dist2(x[i],y[j])
+    return x, y, C
