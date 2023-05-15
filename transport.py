@@ -1,6 +1,7 @@
 ''' Functions related to known optimal transport maps'''
 import numpy as np
 from scipy.linalg import sqrtm,inv,norm
+from scipy.stats import qmc
 from warnings import warn
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
@@ -34,8 +35,11 @@ def gaussian_transport(mean1, cov1, mean2, cov2):
     return transport, W_cost
 
 def gaussian_discreatization(mean1, cov1, mean2, cov2, n, rng):
-    rng = np.random.default_rng(4321)
-    x = rng.multivariate_normal(mean1, cov1, size=n) # use scipy.stats.qmc.MultivariateNormalQMC ?
+    x = rng.multivariate_normal(mean1, cov1, size=n) 
     y = rng.multivariate_normal(mean2, cov2, size=n)
+    #dist = qmc.MultivariateNormalQMC(mean1, cov1, seed=rng)
+    #x = dist.random(n)
+    #dist = qmc.MultivariateNormalQMC(mean2, cov2, seed=rng)
+    #y = dist.random(n)
     C = np.sum((x[:,np.newaxis,:] - y[np.newaxis,:,:])**2, axis=2)/n
     return x, y, C
