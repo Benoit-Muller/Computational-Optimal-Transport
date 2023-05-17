@@ -8,8 +8,8 @@ from matplotlib.widgets import Slider
 
 def laplacian_matrix(n):
     An,Ap = derivative_matrices(n)
-    In = sparse.eye(n)
-    Ip = sparse.eye(n-1)
+    In = sparse.eye(n,format="csr")
+    Ip = sparse.eye(n-1,format="csr")
     D2x = sparse.kron(Ip,sparse.kron(Ip,An))
     D2y = sparse.kron(Ip,sparse.kron(Ap,In))
     D2z = sparse.kron(Ap,sparse.kron(Ip,In))
@@ -69,12 +69,12 @@ def derivative_matrices(n):
     Ap = sparse.diags([1, -2, 1], [-1, 0, 1], shape=(n-1, n-1))
     Ap = Ap.toarray()
     Ap[0,-1], Ap[-1,0] = 1, 1
-    Ap = sparse.dia_matrix(Ap)
+    Ap = sparse.csc_matrix(Ap)
 
     An = sparse.diags([1, -2, 1], [-1, 0, 1], shape=(n, n))
     An = An.toarray()
     An[0,1], An[-1,-2] = 2, 2
-    An = sparse.dia_matrix(An)
+    An = sparse.csc_matrix(An)
     return An, Ap
 
 def divergence(field,An,Ap):

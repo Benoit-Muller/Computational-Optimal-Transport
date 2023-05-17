@@ -64,3 +64,25 @@ def periodic_gaussian_discreatization(mean1, cov1, mean2, cov2, n, rng):
         for j in range(n):
             C[i,j] = torus_dist2(x[i],y[j])
     return x, y, C
+
+def uniform_disk_sample(n,d,rng):
+    if d==1:
+        x = 2*rng.random(size=(d,n))-1
+    if False:
+        r = np.sqrt(rng.random(size=(1,n)))
+        phi = 2*np.pi * rng.random(size=(1,n))
+        x = r * np.vstack((np.cos(r*phi), np.sin(r*phi)))
+    else:
+        x = np.zeros((d,n))
+        j=0
+        while j<n:
+            x[:,j] = 2*rng.random(size=(d,))-1
+            if np.sum(x[:,j]**2) <= 1:
+                j=j+1
+    return x
+
+def uniform_disk_discretization(n,d,rng):
+    x = uniform_disk_sample(n,d,rng).T
+    y = uniform_disk_sample(n,d,rng).T
+    C = np.sum((x[:,np.newaxis,:] - y[np.newaxis,:,:])**2, axis=2)/n
+    return x,y,C
