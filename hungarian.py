@@ -179,7 +179,7 @@ def hungarian3(C,tol=1e-5,disp=True):
     #print("AU=",AU)
     while not np.all(AU):
         k = np.flatnonzero(~AU)[0]
-        #print("k=",k,"from AU=",AU)
+        #print("k=",k)#,"from AU=",AU)
         sink,pred,U,V = augment(C,U,V,row,k)
         #print("sink=",sink)
         AU[k] = True
@@ -206,5 +206,5 @@ def hungarian3(C,tol=1e-5,disp=True):
 
 def make_cost_integer(C):
     m, M = np.amin(C), np.amax(C)
-    C = (C - m)/M # <C,P> –> (<C,P> - m<C,P>)/ M, 
+    C = (C - m)/M # <C,P> –> (<C,P> - m)/ M, 
     return    
