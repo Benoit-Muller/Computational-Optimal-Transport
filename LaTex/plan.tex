@@ -1,0 +1,123 @@
+\documentclass[a4paper]{article}
+\usepackage{amsmath} %pour tous les trucs de math
+\usepackage{systeme} %pour tous les systemes d'équations
+%\usepackage{ bbold }  %pour toutes les doubles lettres
+\usepackage{amssymb}  %pour les double Lettres
+\usepackage{IEEEtrantools} %pour les équations en collonnes
+\usepackage{amsthm} %pour les preuves
+\usepackage[english]{babel} % la langue utilisée
+\usepackage[utf8]{inputenc} % encodage symboles entrée
+\usepackage[T1]{fontenc} % encodage symboles sortie
+\usepackage{fancyhdr} %pour les entêtes et pied de page
+%\usepackage[math]{blindtext} % pour le Lorem ipsum
+%\usepackage{enumitem} %pour changer les listes
+\usepackage[a4paper,textwidth=16cm]{geometry}
+%\usepackage[framed,numbered]{mcode} %MatLab
+\usepackage{graphicx} % pour les graphiques
+%\usepackage{subfig} % pour les doubles figures
+\usepackage{float} % pour bien positionner les figures
+\usepackage[dvipsnames]{xcolor} % pour la couleur du texte et de la page
+%\usepackage{biblatex} % bibliographie
+%\usepackage{csquotes} % pour que la biblio s'adapte à la langue
+\usepackage{prettyref}
+\usepackage[hidelinks]{hyperref} % pour les hyperliens et références(mettre en dernier)
+
+\newrefformat{fig}{Figure~[\ref{#1}]}
+\newrefformat{it}{question~\ref{#1}.}
+\newrefformat{eq}{(\ref{#1})}
+\newrefformat{seq}{Section~\ref{#1}}
+\newrefformat{th}{Theorem~\ref{#1}}
+\newrefformat{lem}{Lemma~\ref{#1}}
+\newrefformat{cor}{Corollary~\ref{#1}}
+\newrefformat{rem}{Remark~\ref{#1}}
+
+\newtheorem{theoreme}{Theorem} %[section]
+\newtheorem{corollaire}{Corollary} %[theorem]
+\newtheorem{lemme}{Lemma} %[theorem]
+\theoremstyle{definition}
+    \newtheorem{definition}{Definition} %[section]
+\theoremstyle{remark}
+     \newtheorem*{remarque}{Remark}
+
+\pagestyle{fancy}
+%\fancyhf{}
+\lhead{Computational Optimal Transport: A Comparison of Three Algorithms}
+\chead{}
+\rhead{Benoît MÜLLER}
+
+\title{ \Huge Computational Optimal Transport:\\ A Comparison of Three Algorithms}
+\author{Benoît MÜLLER}
+\date{lastly compiled \today}
+
+\DeclareMathOperator*{\argmin}{argmin}
+\DeclareMathOperator*{\argmax}{argmax}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\Z}{\mathbb{Z}}
+\newcommand{\C}{\mathbb{C}}
+\newcommand{\com}[1]{\textcolor{ForestGreen}{[~\emph{#1}~]}}
+%\newcommand{\nom}[nombre d’arguments]{définition(#1,#2,...,#n)}
+
+\begin{document}
+\maketitle
+%\tableofcontents
+\begin{center}
+    \Huge \bf{Plan}
+\end{center}
+\begin{itemize}
+    \item Abstract
+    \item Introduction
+    \begin{itemize}
+        \item contributions
+        \item The problem: Push-forward, transport map, optimal transport.
+        \item Theoretical background: Brenier's theorem, Wasserstein distance, well posedness of the problem in the sense of Hadamar).
+    \end{itemize}
+\end{itemize}
+\section{Linear Programming formulation}
+The Kantorovich problem is an infinite dimensional linear problem.
+\begin{itemize}
+    \item Discretization of measure leads to linear programming
+    \begin{itemize}
+        \item Transport maps are bijections on the supports.
+        \item Such transport leads to an integer linear program on the set of permutations matrices.
+        \item We can relax the integer condition to work on the polytope of doubly stochastic matrices .
+        \begin{itemize}
+            \item vertices of polytope always contain solutions (linear programming theory)
+            \item vertices of the polytope of doubly stochastic polytope are permutations matrices (Birkhoff's Theorem)
+        \end{itemize}
+    \end{itemize}
+    This linear program is actually the discretization of the Kantorovich formulation. The integer relaxation is then the discrete version of Brenier's equivalence between Monge and Kantorovich formulation.
+    \item Duality and KKT conditions
+    Write primal vs dual formulation, strong duality, and KKT conditions
+    \item The Hungarian algorithm
+    \begin{itemize}
+        \item Based on KKT conditions
+        \begin{itemize}
+            \item dual feasibility and complementary slackness always holds
+            \item primal feasibility partially holds
+        \end{itemize}
+        \item Steps
+        \begin{itemize}
+            \item Initialize primal and dual variables
+            \item Where dual constrain is active, try to complete primal variable. Is equivalent to perfect matching on a subgraph, and is done by finding augmenting trees.
+            \item When it fails, update dual variable in a wise way so that it can continue  
+        \end{itemize}
+        \item Pseudocode: comment and explain.
+        \item Complexity: $\mathcal{O}(n^3)$, justify with algorithm loops
+    \end{itemize}
+    \item Choice of discretization
+    \begin{itemize}
+        \item Use $x_i\backsim^{i.i.d.}\mu$ and  $y_j\backsim^{i.i.d.}\nu$
+        \item convergence/quality of the approximation in the Wasserstein metric.?
+        \item Quasi random sampling?
+    \end{itemize}
+    \item Possible improvements
+    \begin{itemize}
+        \item What hungarian algorithm doesn't use: the cost matrix comes from the euclidian distance.
+        \item Order of the choices of indices implentation: deep-first, depth-first, geospatial order (Hilbert curve and order) 
+    \end{itemize}
+\end{itemize}
+
+\section{Monge-Ampère equation formulation}
+\section{Fluid dynamics formulation}
+\end{document}

@@ -1,0 +1,542 @@
+\documentclass[a4paper]{article}
+\usepackage{amsmath} %pour tous les trucs de math
+\usepackage{systeme} %pour tous les systemes d'équations
+%\usepackage{ bbold }  %pour toutes les doubles lettres
+\usepackage{ dsfont } % le 1 en double
+\usepackage{amssymb}  %pour les double Lettres
+\usepackage{IEEEtrantools} %pour les équations en collonnes
+\usepackage{amsthm} %pour les preuves
+\usepackage[english]{babel} % la langue utilisée
+\usepackage[utf8]{inputenc} % encodage symboles entrée
+\usepackage[T1]{fontenc} % encodage symboles sortie
+\usepackage{fancyhdr} %pour les entêtes et pied de page
+%\usepackage[math]{blindtext} % pour le Lorem ipsum
+%\usepackage{enumitem} %pour changer les listes
+\usepackage[a4paper,textwidth=15cm]{geometry}
+%\usepackage[framed,numbered]{mcode} %MatLab
+\usepackage{graphicx} % pour les graphiques
+%\usepackage{subfig} % pour les doubles figures
+\usepackage{float} % pour bien positionner les figures
+\usepackage[dvipsnames]{xcolor} % pour la couleur du texte et de la page
+\usepackage{biblatex} % bibliographie
+\usepackage{csquotes} % pour que la biblio s'adapte à la langue
+\usepackage[algoruled, linesnumbered, commentsnumbered, longend]{algorithm2e} % pour les algos
+\usepackage{prettyref}
+\usepackage[hidelinks]{hyperref} % pour les hyperliens et références(mettre en dernier)
+
+\newrefformat{fig}{Figure~[\ref{#1}]}
+\newrefformat{it}{question~\ref{#1}.}
+\newrefformat{eq}{(\ref{#1})}
+\newrefformat{seq}{Section~\ref{#1}}
+\newrefformat{th}{Theorem~\ref{#1}}
+\newrefformat{lem}{Lemma~\ref{#1}}
+\newrefformat{cor}{Corollary~\ref{#1}}
+\newrefformat{rem}{Remark~\ref{#1}}
+\newrefformat{proof}{Page \pageref{#1} in the proof \prettyref{sec:proofs}}
+
+\newtheorem{theoreme}{Theorem} %[section]
+\newtheorem{corollaire}{Corollary} %[theorem]
+\newtheorem{lemme}{Lemma} %[theorem]
+\theoremstyle{definition}
+    \newtheorem{definition}{Definition} %[section]
+\theoremstyle{remark}
+     \newtheorem*{remarque}{Remark}
+
+\pagestyle{fancy}
+%\fancyhf{}
+\lhead{Computational Optimal Transport: A Comparison of Two Algorithms}
+\chead{}
+\rhead{Benoît MÜLLER}
+
+\title{ \Huge Computational Optimal Transport:\\ A Comparison of Two Algorithms}
+\author{Benoît MÜLLER}
+\date{May 2023}
+
+\addbibresource{ref.bib}
+
+\DeclareMathOperator*{\argmin}{argmin}
+\DeclareMathOperator*{\argmax}{argmax}
+\DeclareMathOperator*{\row}{row}
+\DeclareMathOperator*{\col}{col}
+\DeclareMathOperator*{\supp}{supp}
+\DeclareMathOperator*{\Id}{Id}
+\newcommand{\dd}{\,\mathrm{d}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\Z}{\mathbb{Z}}
+\newcommand{\C}{\mathbb{C}}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\un}{\mathds{1}}
+\newcommand{\X}{\mathcal{X}}
+\newcommand{\Y}{\mathcal{Y}}
+\newcommand{\ie}{i.e.\;}
+\newcommand{\None}{\text{None}}
+\newcommand{\com}[1]{\textcolor{ForestGreen}{[~\emph{#1}~]}}
+\newcommand{\ps}[2]{\langle#1,#2\rangle}
+\newcommand{\bigps}[2]{\big\langle#1,#2\big\rangle}
+\newcommand{\biggps}[2]{\bigg\langle#1,#2\bigg\rangle}
+\newcommand{\Bigps}[2]{\Big\langle#1,#2\Big\rangle}
+\renewcommand{\div}{\mathrm{div}}
+%\newcommand{\nom}[nombre d’arguments]{définition(#1,#2,...,#n)}
+
+\begin{document}
+\maketitle
+\tableofcontents
+\begin{abstract}
+We present two reformulations of the Monge optimal transport problem. The first one is a discretization leading to the linear sum assignment problem, which we solve with the Hungarian algorithm. The second is the dynamical formulation of Benamou-Brenier and leads to a functional saddle problem, which we solve by a relaxed augmented Lagrangian method. Both methods are implemented, numerically analyzed and compared.\com{...}
+\end{abstract}
+\section{Introduction}
+\subsection{Contributions}
+\subsection{The problem}  \com{Push-forward, transport map, optimal transport.}
+The problem of optimal transport starts with Gaspard Monge in 1781, where he formulate the problem of transporting a distributed mass to another one with a minimum possible cost.
+
+The two masses are now represented by probabilities measures $\mu$,$\nu$ on some spaces $\X$,$\Y$. Since we have probabilities measures, we can interpreter the mass by two random variables $X$,$Y$ that have their distributions. The transport itself is represented by a transport map $T$ that needs to be compatible: $T(X)$ has the same distribution of $Y$:
+$$\nu(B) = \mu(T^{-1}(B)) \text{ for any Borel set } B \text{ of }\X.$$
+In this case we say that $\nu$ is the pushforward of $\mu$ and we write $T_{\#}\mu = \nu$.
+The cost is determined by a function $c:\X\times\Y\to\R$ defined on any pair of points, and by averaging on the space we define the cost of transport:
+$$\E[c(X,T(X))] = \int c(x,T(x))\dd\mu(x).$$
+Typical costs are $c(x,y)=\|x-y\|_p^p$, and in our project we will stay in the quadratic case $p=2$ for its regularity and properties that are shown in the next section.
+The Monge problem (MP) is hence 
+\[\inf_{T_{\#}\mu = \nu}\int \|x,T(x)\|^2\dd\mu(x) \label{eq:MP} \tag{MP} \]
+
+
+
+
+
+
+\subsection{Theoretical background} \com{Brenier’s theorem, Wasserstein distance, well posedness of the problem in the sense of Hadamar).}
+The Monge problem gained a bit more interest when Kantorovich defined a relaxation of the problem, where each point of $\X$ can be linked to more than one point of $\Y$. This is defined by a probability measure $\gamma$ on $\X\times\Y$, with the compatibility condition that the total mass sent from a set must be its measure:
+$$\gamma(A\times \Y) = \mu(A)$$ 
+, and the total mass received by a set must be its measure:
+$$\gamma(\X\times B) = \nu(B).$$
+In other words, the measures $\mu$ and $\nu$ are the marginal distributions of $\gamma$ which is then called a coupling and we write the set of couplings $$\mathcal{P}(\mu,\nu)=\{\gamma:\X\times\Y | \pi_{1\#}\gamma=\mu,\,\pi_{2\#}\gamma=\nu\} .$$
+This leads to a relaxed version of (MP), called Kantorovich problem:
+\[\inf_{\gamma\in\mathcal{P}(\mu,\nu)} \int \|x,y\|^2\dd\gamma(x,y) \label{eq:KP} \tag{KP} \]
+every transport map $T$ gives the same cost as the coupling $(Id\times T)_{\#}\mu$ so (KP) is a lower bound of (MP): (KP)$\leq$(MP). The set $\mathcal{P}(\mu,\nu)$ have the good property to be non empty and actually have an optimizer:
+\begin{theoreme}[Existence of a optimal coupling]
+    (KP) admits an optimal coupling.
+\end{theoreme}
+\begin{proof} \com{cite}\end{proof}
+The Kantorovich formulation admits also a dual formulation of the problem which will be central in both algorithms presented later:
+\begin{theoreme}[Kantorovich duality]
+    Let $\mu$ and $\nu$ be measure with finite first moments, then (KP) admit a dual formulation with dual variables $ \phi,\psi:\R^n\to\R\cup \{\infty\}$ that are measurable maps:
+   \[ \min_{\gamma\in\mathcal{P}(\mu,\nu)} \int -x\cdot y \dd\gamma(x,y)
+   = \max_{\phi(x) +\psi(y) \leq - x\cdot y} \int \phi(x)\dd\mu(x) + \int \psi(x)\dd\nu(y)
+   \label{eq:KD} \tag{KD} \]
+\end{theoreme}
+\begin{proof} \com{cite}\end{proof}
+ The pertinence of the Kantorovich formulation comes from the fact that under come regularity condition, both problem are actually equivalent:
+ \begin{theoreme}[Brenier's Theorem] \label{thm:brenier}
+    Let $\mu$ and $\nu$ be measures on $\R^d$ with finite second moments and such that $\mu$ is absolutely continuous w.r.t. the Lebesgue measure.
+    
+    Then (KP) has a $\mu$-unique \footnote{the value of $T$ is unique on the support of $\mu$, outside the value can be set arbitrarily} optimal coupling $\gamma$. In addition, $\gamma=(Id\times T)_{\#}\mu$ and $T=\nabla\phi$ for a convex function $\phi$.
+\end{theoreme}
+\begin{proof} \com{cite}\end{proof}
+
+In other words, the solution of (KP) is actually a transport map and (MP)=(KP). Furthermore, we can show that the convexity of $\phi$ is actually neccessary and sufficient:
+ \begin{corollaire}
+    Under the hypothesis of \prettyref{thm:brenier}, there exists and $\mu$-unique optimal transport map. In addition, a transport map $T$ is optimal if and only if $T=\nabla\phi$ $\mu$-a.e. for a convex function $\phi$.
+ \end{corollaire}
+ \begin{proof} \com{cite}\end{proof}
+We can use the transport as a notion of distance between measures:
+\begin{theoreme}[Wasserstein's distance] \label{thm:wasserstein}
+    $W_2(\mu,\nu) = \sqrt{(KP)}$ is a distance on the space of probability measures with finite second moments.
+\end{theoreme}
+\begin{proof} \com{cite}\end{proof}
+We know that the solution of (MP) exist, is unique, and since a distance is continuous, the problem of finding the cost for given measures is well posed in the sense of Hadamard. The better we approximate the measures, the better we approximate the cost. \com{the question of continuity of the transport map necessitate more regularity and is probably not valid in the torus }
+
+
+\section{Discrete formulation}
+\subsection{Discretization of measure leads to linear programming}
+Suppose we can approximate the measures with Dirac measures in the following way:
+$$\mu = \frac{1}{n}\sum_{i=1}^n \delta_{x_i}, \quad \nu = \frac{1}{n}\sum_{j=1}^n \delta_{y_j},$$
+for $n$ pairs of points $x_i,y_j\in \R^d$. Then we can show that the problem is actually equivalent a linear program on the doubly stochastic matrices:
+\[ \min_{\substack{P\geq0 \\ P\un=\un=P^\top\un}} \ps{P}{C}, \]
+where $P,C\in\R^{n\times n}$, $C_{ij}=\|x_i-y_j\|^2$, $\ps{.}{.}$ denotes the Frobenius scalar product, and $\un=(1,\dots,1)^\top\in\R^d$.
+
+As a result, we can use all the machinery of linear program solvers. However, linear programming models a very wide range of problems and general solvers are slow (exponential). A more refined algorithm that takes into account the particular structure of this problem can have a better time complexity, like the Hungarian algorithm that we are going to use and which have cubic time complexity.
+\com{transition}
+
+\begin{lemme} \label{lem:permutation_map}
+    The set of transport maps from $\mu = \frac{1}{n}\sum_{i=1}^n \delta_{x_i}$ to $\nu = \frac{1}{n}\sum_{j=1}^n \delta_{y_j}$ is 
+    $$\{T:\R^d\to\R^d | \exists\sigma\in S_n:T(x_i)=y_{\sigma(i)} \forall i\in \{1,\dots,n\}\},$$
+    \ie $T$ only need to permute $\{x_i\}_{i=1}^n$ and $\{y_j\}_{i=1}^n$.
+\end{lemme}
+\begin{proof} See \prettyref{proof:permutation_map}. \end{proof}
+
+\com{transition}
+
+\begin{lemme} \label{lem:LSAP_derivation}
+    The Monge problem is equivalent to the linear sum assignment problem (LSAP), which is a integer linear program:
+    \begin{IEEEeqnarray}{rCl} \label{eq:LSAP}
+    \min_{T_\#\mu=\nu} \int_{\R^d}\|x-T(x)\|^2\dd\mu = \min_{\substack{P_{ij}\in\{0,1\} \\ P\un=\un=P^\top\un}} \ps{P}{C}
+    \end{IEEEeqnarray}
+    with $C_{ij} = \|x_i-y_j\|^2$
+\end{lemme}
+\begin{proof} See \prettyref{proof:LSAP_derivation}.\end{proof}
+
+This formulation can be understood in term of graphs. The cost matrix $C$ is associated to a weighted bipartite graph, with two vertices components of same size $n$, and where $C_{ij}$ is the weight between the $i$-th and $j$-th vertex. We consider this bipartite graph as complete in the sense that all the $n^2$ possible edges are given a non-negative weight, possibly zero. The permutation matrix $P$ represent a perfect matching, this is why it is called an "assignment problem". The cost associated to a matching $P$ is $\ps{P}{C}$, explaining the "linear sum" name.
+
+\com{exemple of graph}
+
+\begin{lemme} \label{lem:integer_relaxation}
+    The scalar version of LSAP \prettyref{eq:LSAP} always has integer solutions. In particular
+    \begin{IEEEeqnarray}{rCl}
+    \min_{\substack{P_{ij}\in\{0,1\} \\ P\un=\un=P^\top\un}} \ps{P}{C} = \min_{\substack{P\geq0 \\ P\un=\un=P^\top\un}} \ps{P}{C}
+    \end{IEEEeqnarray}
+\end{lemme}
+\begin{proof} See \prettyref{proof:integer_relaxation}.\end{proof}
+
+
+Puting \prettyref{lem:permutation_map}, \prettyref{lem:LSAP_derivation}, and\prettyref{lem:integer_relaxation} together, we conclude the following theorem:
+\begin{theoreme} \label{thm:discrete}
+    The Monge problem is a integer solution of the following linear program on doubly stochastic matrices:
+    \begin{IEEEeqnarray}{rCl} \label{eq:discrete}
+    \min_{T_\#\mu=\nu} \int_{\R^d}\|x-T(x)\|^2\dd\mu = \min_{\substack{P_{ij}\geq0 \\ P\un=\un=P^\top\un}} \ps{P}{C}
+    \end{IEEEeqnarray}
+    with $C_{ij} = \|x_i-y_j\|^2$
+\end{theoreme}
+\begin{proof}
+    Direct result of \prettyref{lem:permutation_map}, \prettyref{lem:LSAP_derivation}, and \prettyref{lem:integer_relaxation}.
+\end{proof}
+
+\subsection{Duality and KKT conditions}
+Now that we have a linear programming formulation of the problem, we use the duality theory to gain some insight about the solutions. By \prettyref{lem:integer_relaxation} the linear problem admit an optimal solution, so strong duality theorem for linear programming holds. We have then the two equivalent problems
+\begin{IEEEeqnarray}{rCl}
+   \text{(primal)} \quad\quad \min_{\substack{P\geq0 \\ P\un=\un=P^\top\un}} \ps{P}{C} 
+    &=& \max_{\substack{u,v\in\R^d \\ u_i+v_j\leq C_{ij}}} \ps{\un}{u+v} \quad\quad \text{(dual)}
+\end{IEEEeqnarray}
+Let P,u,v be feasible primal and dual variables. Then they are optimal if and only if 
+$$\ps{P}{C} = \ps{\un}{u+v}$$
+We compute that 
+\begin{IEEEeqnarray*}{rCl}
+    \ps{P}{C} - \ps{\un}{u+v} 
+    &=& \sum_{i,j=1}^n P_{ij}C_{ij} - \sum_{i=1}^n u_i - \sum_{j=1}^n v_j \\
+    &=& \sum_{i,j=1}^n P_{ij}C_{ij} - \sum_{i=1}^n u_i \sum_{j=1}^n P_{ij} - \sum_{j=1}^n v_j \sum_{i=1}^n P_{ij} \\
+    &=&  \sum_{i,j=1}^n P_{ij}(C_{ij} - u_i - v_j).
+ \end{IEEEeqnarray*}
+By feasibility conditions, the terms are non negative, so $P,u,v$ are optimal if and only if 
+$$P_{ij}(C_{ij} - u_i - v_j) = 0 \quad \forall i,j\in\{1,\dots,n\},$$
+\ie $i$ can only be assigned to $j$ where dual feasibility is active, this is called complementary slackness. Together with feasibility, we hence recover the KKT conditions, which we resume here:
+\begin{equation} \tag{KKT} \label{eq:KKT}
+\begin{cases}
+    P \geq 0,\quad P\un = P^\top\un = \un & \text{: primal feasibility} \text{ (pf)}  \\
+    u_i + v_j \leq C_{ij} \quad \forall i,j\in\{1,\dots,n\} & \text{: dual feasibility}  \text{ (df)} \\
+    P_{ij}(C_{ij} - u_i - v_j) = 0 \quad \forall i,j\in\{1,\dots,n\} &\text{: complementary slackness} \text{ (cs)}
+\end{cases}
+\end{equation}
+
+\subsection{Hungarian algorithm}
+The Hungarian algorithm is the first polynomial time algorithm to solve the linear sum assignment problem. It is a primal-dual algorithm that exploit the \prettyref{eq:KKT} conditions together with the fact that integer solutions exist. During the process, (df) and (cs) are always satisfied and (pf) is partially satisfied in the sense that 
+\begin{equation}
+     P_{ij}\in \{0,1\},\quad P\un, P^\top\un \leq \un \tag{ppf} \label{eq:ppf}.
+\end{equation}
+In other words, by default $P$ is filled with zeros so that it satisfy (cs) and we iteratively increase the number of ones, until we have added $n$ of them and $P\un= P^\top\un = \un$, assuring optimality.
+
+The key step to always be able to fill $P$ is a dual step, where we update the dual variables so that we can continue the filling. We organize the process in three steps:
+\begin{enumerate}
+    \item Initialize $P,u,v$ such that it satisfy (ppf),(df), and (cs). \\
+    This can be done by various methods, either starting with $P,u,v=0$ or a more optimal first guess.
+    \item Where $u_i+v_j=C_{ij}$, try to increase the number of ones in $P$. \\
+    This is done by considering the bipartite sub-graph induced by zero entries of the reduced cost matrix $\tilde{C}_{ij}=C_{ij} - u_i - v_j$, and trying to find a perfect matching. For this we grow an alternating tree to try to find an augmenting path, which we will define later.
+    \item When step 2. fails and we cannot increase the matching, we update $u,v$ wisely so that we can actually continue and return to 2.
+\end{enumerate}
+\subsubsection*{Step 1: Initialization}
+We use a greedy method, starting with $P,u,v=0$. To keep $u_i + 0\leq C_{ij}$ true, we set $u_i = \min_j C_{ij}$. Then, to keep $u_i + v_j\leq C_{ij}$ true, we set $v_j = \min_i (C_{ij}-u_i)$. Notice that with this choice, each row of $\tilde{C}$ has a zero entry in $\argmin_j C_{ij}$. To fill $P$, we iterate on the row and fill one of those zero-entry places if the column was not already taken by another row. We also store the value of $P$ in functional style fashion, with a vector row such that 
+$$\begin{cases}
+    \row_j=i & \text{if } P_{ij}=1 \\
+    \row=\None & \text{if } P_{ij}=0.
+\end{cases}$$
+At the end this will gives us $P_{{\row_j}j}=1$ and $\row$ will be the inverse of the permutation associated to $P$. This leads to the following algorithm:
+
+\begin{algorithm}[H]
+    \caption{Initialize \label{algo:init}\\
+    Compute an initial value for $P,u,v$ that satisfy partial (KKT).}
+    \DontPrintSemicolon
+    \SetKwInOut{Input}{Input}
+    \SetKwInOut{Output}{Output}
+    
+    \Input{$C\in\R^{n\times n}$}
+    
+    \Output{A permutation matrix $P\in\R^{d\times d}$, and $u,v\in\R^n$ that satisfy partial (KKT).}
+    $ \forall i\in\{1,\dots,n\}: u_i = \min_j C_{ij} $ \;
+    $ \forall j\in\{1,\dots,n\}: v_j = \min_i (C_{ij}-u_i) $ \;
+    $\forall i,j\in\{1,\dots,n\}: P_{ij}=0$  \;
+    \For{ $i,j=1,\dots,n$}{
+        \For{ $j=1,\dots,n$}{
+            \If{$C_{ij} - u_i - v_j=0 \And \row_j=\None$}{
+                $P_{ij} = 1$ \;
+                $\row_j = i$\;
+                }
+        }
+    }
+    \Return{P,u,v}
+\end{algorithm}
+
+\subsubsection*{Step 2: Grow an alternating tree}
+As we said before, the second step consist of trying to increase the number of ones in $P$, keeping partial (KKT) true. As a result, we have to look only on the edges that have active (df), where the reduce cost matrix is zero. This induce a sub-graph, and we use the alternating path formulation of perfect matchings. An alternating path is a simple path such that its edges are alternatively inside and outside of the matching. An alternating path that have its first and last vertices outside the matching is called augmenting, because if you change the membership of its edges to the matching, the matching increase of size by one. This characterization is actually necessary:
+\begin{theoreme}[\com{cite}]
+    A matching is perfect if and only if there exist no augmenting path.
+\end{theoreme}
+This gives a method to augment the matching: find augmenting path. To do this, we grow a tree formed of alternating paths, called an alternating tree.
+
+At any iteration, a vertex is labeled if it belong to the alternating tree. The first labeled vertex is the chosen root. The set of vertices for the row is called $U$, and $V$ for the columns. At each iteration we try to go from $U$ to an unlabeled vertex of $V$ using a un-assigned edge, and then come back to $U$ using an assigned edge. Looking for edges to come back is called scanning. At each iteration there is three possibilities: we augment the tree, we augment the matching, or there is no vertex to scan. Suppose we are at vertex $i$:
+\begin{itemize}
+    \item There exists some unlabeled neighbor vertices $j$, we label them and keep track of the tree with a predecessor vector pred. We can then scan them:
+    \begin{itemize}
+        \item Augment the tree: One of them is on the matching, use its assigned edge to go back to $U$ on a new $i$ and label it. Set the $j$ as scanned.
+        \item Augment the matching: None of them are on the matching, so we are at the end of an augmenting tree. Use pred to come back to the root and invert all edges.
+    \end{itemize}
+    \item No more vertex to scan: There is no unlabeled neighbor vertex. We need to add a new edge from the labeled vertices of $U$ to the unlabeled of $V$, but without taking off the ones of the alternating tree. This is done with the dual update of the step 3.
+\end{itemize}
+
+\subsubsection*{Step 3: Dual update}
+\subsection{Numerical results}
+\section{Dynamical formulation}
+\subsection{Benamou Brenier formula}
+The idea of the fluid dynamic formulation is to consider the transport not as a direct link between the two measures, but as a continuous path of measures, such that the total cost along the path is minimized. These paths are geodesics in the Wasserstein metric:
+$$\forall t\in[0,1],\, \rho_t \text{ is a probability measure and } W_2(\rho_s,\rho_t) = (s-t)W_2(\mu,\nu).$$
+
+In the case where we know the optimal transport map $T$, the geodesic is simply the push-forward of the interpolation of the tranport map and the identity:
+$$\rho_t = T_{t\#}\mu \text{ with } T_t = (1-t)\Id + tT.$$
+Now what we want to do is find a characterization of $\rho$ and express the minimization problem with it.
+Suppose $T_t$ is the flow of some vector field $v_t$:
+
+$$\begin{cases}
+    \partial_tT_t(x) = v_t(T_t(x)) \\
+    \rho_t = T_{t\#}\mu
+\end{cases}$$
+
+Then we can derive a continuity equation:
+\begin{lemme}[Continuity equation] \label{lem:continuity}
+    Let $(T_t)_{t\in[0,1]}$ be a locally Lipschitz family of diffeomorphisms with $T_0=\Id$, and let $(v_t)_{t\in[0,1]}$ be the velocity fields associated to the trajectories $T_t$, \ie vector field that satisfied the ODE just presented. Let $\mu$ be a source probability measure and $\rho_t:={T_t}_{\#}\mu$. Then  $\rho$ is the unique solution to
+    $$\partial_t\rho_t + \div(\rho_t v_t) = 0 \quad\text{ ($\div$ is in the weak sense)}$$
+    in the $C([0,1],\mathcal{P}(\R^d))$ where the probabilities measure set is equiped with the weak topology. The weak formulation is 
+    $$\forall \psi\in C_c^\infty(\R^d), \quad \partial_t\int \psi\dd\rho_t = \int\ps{\nabla\psi}{v_t}\dd\rho_t$$
+\end{lemme}
+\begin{proof} See \prettyref{proof:continuity}\end{proof}
+For two probabilities measures $\mu,\nu$, we define the set $V(\mu,\nu)$ of couples $(\rho,v)$ such that 
+\begin{itemize}
+    \item $\rho:[0,1]\to (\mathcal{P}_ac(\R^d),*\text{-weak})$ is a continuous curve of absolutely continuous measures in the $*$-weak topology\footnote{continuity of $\rho_t$ in the *-weak topology if for all $\phi\in C_c(\R^n),\, t\mapsto \int \phi \dd \rho_t$ is continuous}.
+    \item $\forall t\in[0,1], v_t\in L_2(\rho_t,\R^d)$ are vector fields
+    \item $\cup_{t\in[0,1]}\supp(\rho_t)$ is bounded
+    \item $\partial_t \rho_t + \div(\rho_tv_t)=0$ in the weak sense
+    \item $\rho_0=\mu$, $\rho_1=\nu$
+\end{itemize}
+\begin{theoreme}[Benamou-Brenier formula] \label{thm:BB}
+    $$W_2(\mu,\nu)^2 = \min \bigg\{\int_0^1\int \|v_t\|^2 \dd\rho_t\dd t \;\bigg|\; \partial_t\rho_t + \div(\rho_t v_t) = 0,\, \rho_0=\mu,\, \rho_1=\nu \bigg\}$$
+\end{theoreme}
+\begin{proof}See \prettyref{proof:BB} \end{proof}
+
+\subsection{Augmented Lagrangian optimization}
+The formulation in \prettyref{thm:BB} induce an optimitation problem but the objective function is not jointly convex in $(\rho,v)$, we make a change of variable to make it convex:
+$$(\rho,v)\mapsto (\rho,\rho v)=:(\rho,m)$$
+so that $\|v\|^2 \rho = \frac{\|m\|^2}{\rho}$ when $\rho>0$ and is 0 else. $k:(\rho,m)\mapsto \|m\|^2/\rho$ is now convex and can be expressed as a suppremum of affine functions indexed on functions $a,b$ that become dual variables:
+\begin{lemme} \label{lem:k}
+    $$k((\rho,m) = \sup_{(a,b)\in K} a\rho + \ps{b}{m}$$
+    with $K = \{(a,b):I\times\Omega\to\R\times\R^d \;|\;  a + \frac12\|b\|^2 \leq 0 \}$
+\end{lemme}
+\begin{proof} See \cite[Lemma 5.17]{OT4ApplMath}.
+\end{proof}
+
+Now, the continuity equation constraint becomes $0 = \partial_t\rho + \div(m) = \div_{t,x}(\rho,m) $, and using the boundary conditions we can derive a weak formulation:
+\begin{lemme} \label{lem:weak}
+    Suppose that $\rho$ and $v$ are smooth densities and vector fields. Then the continuity equation and the boundary conditions are satisfied if and only if it is satisfied in the following sense:
+    $$\forall \phi\in C_c^\infty([0,1],\bar{\Omega}),\, \int_0^1\int_\Omega \rho\partial_t\phi + \ps{\nabla\phi}{m} \dd x \dd t + G(\phi) = 0$$
+    with $G(\phi) = \int_\Omega \phi(0,x)\rho_0(x) - \phi(1,x)\rho_1(x) \dd x $.
+\end{lemme}
+\begin{proof} See \cite[Proposition 4.3.]{OT4ApplMath}.
+\end{proof}
+As a result, we can use this expression to express the continuity condition in the objective function by introducing the test function $\phi$ as a dual variable, since as soon as the condition is not satisfied, $$\sup_{\phi\in C_c^\infty(]0,1[,\bar{\Omega})} \bigg(\int_0^1\int_\Omega \rho\partial_t\phi + \ps{\nabla\phi}{m} \dd x \dd t + G(\phi)\bigg) = \infty \text{ if the condition is not satisfied} $$.
+
+Let us put everything together using \prettyref{lem:k} and \prettyref{lem:weak} and rewrite it as a simple expression:
+\begin{IEEEeqnarray*}{rCl}
+    W_2(\mu,\nu)^2 &=& \inf \bigg\{\int_0^1\int \|v_t\|^2 \dd\rho_t\dd t \;\bigg|\; \partial_t\rho_t + \div(\rho_t v_t) = 0,\, \rho_0=\mu,\, \rho_1=\nu \bigg\} \\
+    &=& \inf \bigg\{\int_0^1\int_\Omega \sup_{(a,b)\in K} (a\rho + \ps{b}{m}) \;\bigg|\; \partial_t\rho_t + \div(\rho_t v_t) = 0,\, \rho_0=\mu,\, \rho_1=\nu \bigg\} \\
+    &=& \inf_{\rho,m} \int_0^1\int_\Omega \sup_{(a,b)\in K} (a\rho + \ps{b}{m}) \dd x\dd t + \sup_{\phi} \bigg(-\int_0^1\int_\Omega \rho\partial_t\phi + \ps{\nabla}{m} \dd x \dd t - G(\phi)\bigg) \\
+    &=& \inf_{\rho,m} \sup_{(a,b)\in K, \phi}\bigg( \int_0^1\int_\Omega a\rho + \ps{b}{m} -  \rho\partial_t\phi - \ps{\nabla\phi}{m} \dd x \dd t - G(\phi)\bigg) \\
+    &=& \inf_{\rho,m} \sup_{(a,b)\in K, \phi}\bigg( \int_0^1\int_\Omega (a-\partial_t\phi)\rho + \ps{b - \nabla\phi}{m}  \dd x \dd t - G(\phi)\bigg) \\
+    &=& \inf_{\rho,m} \sup_{(a,b)\in K, \phi}\Big( \int_0^1\int_\Omega \biggps{(a,b) - \nabla_{x,t}\phi}{(\rho,m)}  \dd x \dd t - G(\phi)\bigg) \\
+    &=& \inf_{\rho,m} \sup_{(a,b)\in K, \phi}\Big( \biggps{(a,b) - \nabla_{x,t}\phi}{(\rho,m)}_{L^2([0,1]\times\Omega)} - G(\phi)\bigg)
+\end{IEEEeqnarray*}
+
+We obtain then a saddle problem, and we know that such problems arise when we formulate constrained optimization problems with Lagrange duality. The first term looks like a primal constraint and the secont term could be the objective function. The only change to make here is inverting the role of the primal and dual variables and in order to have a minimization problem we reverse the direction of the extrema by taking the opposite value of the expression:
+\begin{IEEEeqnarray*}{rCl}
+    - W_2(\mu,\nu)^2 
+    &=& - \inf_{\rho,m} \sup_{(a,b)\in K, \phi}\Big( \biggps{(a,b) - \nabla_{x,t}\phi}{(\rho,m)}_{L^2([0,1]\times\Omega)} - G(\phi)\bigg) \\
+    &=&  \sup_{\rho,m}  \inf_{(a,b)\in K, \phi}\Big( G(\phi) + \biggps{(\rho,m)}{\nabla_{x,t}\phi-(a,b)}_{L^2([0,1]\times\Omega)}\Big)
+\end{IEEEeqnarray*}
+Up to strong duality, this is just like if we had written the Lagrangian formulation of the minimization problem 
+$\inf_{\nabla_{x,t}\phi\in K} G(\phi)$ with $(\rho,m)$ as a dual variable. This motivate us to use the augmented Lagrangian method to try to solve the problem. We define $M=(\rho,m)$, $c=(a,b)$ and the augmented Lagrangian as 
+$$ L_\tau(\phi,c,M) 
+= G(\phi) + \ps{M}{\nabla_{x,t}\phi-c}_{L^2([0,1]\times\Omega)} + \frac{\tau}{2}\|\nabla_{x,t}\phi-c\|^2_{L^2([0,1]\times\Omega)}$$
+
+\begin{algorithm}[H]
+    \caption{Augmented Lagrangian method (ALM) \label{algo:alm}}
+    \DontPrintSemicolon
+    \SetKwInOut{Input}{Input}
+    \SetKwInOut{Output}{Output}
+    
+    \Input{initial values $\phi^0,M^0,c^0$}
+    
+    \Output{A sequence of variables $(\phi^n,M^n,c^n)_n$}
+    \For{ $n=0\dots$ and while convergence is not detected}{
+        $ (\phi^{n+1},c^{n+1}) = \argmin_{(\phi,c):c\in K}L_\tau(\phi,c,M^n)$ (primal step)\;
+        $ M^{n+1} = M^{n+1} + \tau(\nabla_{x,t}\phi^{n+1} - c^{n+1}) $ (dual step)\;
+        }
+\end{algorithm}
+
+The primal step is itself a constrained optimization problem, but it is constrained only for one of the two primal variables, so to be able to solve this sub problem, we relax the optimization by doing two successive coordinate optimizations and we obtain a relaxed ALM:
+
+\begin{algorithm}[H]
+    \caption{Relaxed ALM (RALM) \label{algo:ralm}}
+    \DontPrintSemicolon
+    \SetKwInOut{Input}{Input}
+    \SetKwInOut{Output}{Output}
+    
+    \Input{initial values $\phi^0,M^0,c^0$}
+    
+    \Output{A sequence of variables $(\phi^n,M^n,c^n)_n$}
+    \For{ $n=0\dots$ and while convergence is not detected}{
+        $ \phi^{n+1}    = \argmin_{\phi}    L_\tau(\phi,c^n,M^n)$ ( first primal step)\;
+        $ c^{n+1}       = \argmin_{c\in K}  L_\tau(\phi^{n+1},c,M^n)$ ( second primal step)\;
+        $ M^{n+1}       = M^{n+1} + \tau(\nabla_{x,t}\phi^{n+1} - c^{n+1}) $ (dual step)\;
+        }
+\end{algorithm}
+We detail the resolution of each of the two primal:
+\paragraph{The First primal step} can be solved by computing the first variation and setting it to zero. We obtain then the weak formulation of a Poisson equation with heterogeneous Neumann boundary conditions in time:
+\begin{equation*} \left\{
+ \begin{aligned}
+    \tau \Delta_{x,t}\phi   &= \div_{x,t}(\tau c^n - M^n) \\
+    \tau \partial_t\phi^n(0,.) &= \mu - \rho^n(0,.) + \tau a^n(0,.) \\
+    \tau \partial_t\phi^n(1,.) &= \nu - \rho^n(1,.) + \tau a^n(1,.)
+ \end{aligned} \right.
+ \end{equation*}
+ 
+\paragraph{The second primal step} is solved by expending the square and re-factorize the expression. Up to terms independent of $c$, we get
+$$\inf_{c\in K} \|\nabla_{x,t}\phi^{n+1} + \frac{1}{\tau}M^{n}-c\|^2$$
+which is minimal in the point-wise projection of $\nabla_{x,t}\phi^{n+1} + \frac{1}{\tau}M^{n}$ into the convex set $K$. The set
+$$K = \{(a,b):I\times\Omega\to\R\times\R^d \;|\;  a + \frac12\|b\|^2 \leq 0 \}$$
+is generated by the rotation of the parabola $x + \frac12y^2 \leq 0$ around the $x$-axis and is hence convex. The projection is unique and computable by solving the normal equations.
+
+
+
+\subsection{Numerical results}
+let us detail the choices made to solve the primal steps:
+\paragraph{The Poisson step (first primal step)} is solved by finite differences on a regular grid, with a centered three points stencil for the second derivatives (second order). The Neumann boundary conditions are included by using ghost points and centered two point stencil (second order). The stiffness matrix is build in sparse matrix mode, and the linear system is solved with a sparse LU solver with approximate minimum degree column ordering.
+
+The asymptotic error is of order two with respect to the step size, and the complexity depends on the sparse solver and is expressed with respect to the total number of points. It is less than cubic since this is the complexity of the  dense $LU$ decomposition, and it is not less than quadratic since for a sparse $LU$ decomposition, just inverting the factorization takes a quadratic amount of time.
+
+\paragraph{The projection step (second primal step)} is done using the invariance of $K$ under rotation. We reduce the problem to a 2D projection, and write the normal equations: they consist of finding the biggest real root of a cubic polynomial. This root is found using Cardano's method.
+
+\section{Comparison of the two formulations}
+\subsection{running time}
+\subsection{qualitative comparison}
+\section{Proofs} \label{sec:proofs}
+\begin{proof}[Proof of \prettyref{lem:permutation_map}] \label{proof:permutation_map}
+    The condition for a map $T:\R^d\to\R^d$ to be a transport map is that for any Borel set $B\subset \R^d$, $\nu(B) = \mu(T^{-1}(B))$, so $T$ needs only to be defined on the support of $\mu$, $\supp(\mu)=\{x_i\}_{i=1}^n$. The only choice for $T(x_i)$ is a certain $y_j$ because 
+    $$\nu(\{T(x_i)\}) = \mu(T^{-1}(\{T(x_i)\})) \geq \mu(\{x_i\}) = 1 > 0 
+    \implies T(x_i)\in\{y_j\}_{j=1}^n.$$
+    
+    Also, $T$ is injective on the support because 
+    $$\frac{1}{n} = \nu(\{y_j\}) = \mu(T^{-1}(\{y_j\})) 
+    \implies T^{-1}(\{y_j\}) = \{x_i\} \text{ for some i.}$$ 
+    
+    hence, $T:\{x_i\}_{i=1}^n \to \{y_j\}_{j=1}^n$  is an injection between two sets of same cardinalities, it is a bijection, and is associated to a permutation $\sigma\in S_n$ such that $T(x_i) = y_{\sigma(i)}$.
+    
+    In the other way, it is clear that such maps are indeed transport map, because for any $J\subset\{1,\dots,n\}$, 
+    $$T(\{y_j\}{j\in J}) = |J|/n = \mu(\{T^{-1}(\{y_j\})\}_{j\in J}) = \mu(T^{-1}(\{y_j\}_{j\in J})).$$
+\end{proof}
+
+\begin{proof}[Proof of \prettyref{lem:LSAP_derivation}] \label{proof:LSAP_derivation}
+    Let us compute the cost of transport associated to a transport map $T$ of permutation $\sigma$:
+    \begin{IEEEeqnarray*}{rCl's}
+        \int_{\R^d} \|x-T(x)\|^2\dd \mu(x) 
+        &=& \sum_{i=1}^n \frac{1}{n} \int_{\R^d}\|x-T(x)\|^2\dd\delta_{x_i} & \\
+        &=& \sum_{i=1}^n \frac{1}{n} \|x_i-T(x_i)\|^2 & \\
+        &=& \sum_{i=1}^n C_{i\sigma(i)} &  with $C_{ij} = \frac{1}{n}\{x_i-y_j\}^2$ \\
+        &=& \sum_{i,j=1}^n P_{ij}C_{ij} & with the permutation matrix $P_{ij}=\delta_{\sigma(i)j}$\\
+        &=& \ps{P}{C}. & with $\ps{.}{.}$ the Frobenius scalar product
+    \end{IEEEeqnarray*}
+    The feasibility of P to represent a transport map is to being a permutation matrix, \ie
+    $$\begin{cases}
+        \sum_i P_{ij} = 1 & \forall j\in\{1,\dots,n\} \\
+        \sum_j P_{ij} = 1 & \forall i\in\{1,\dots,n\} \\
+        P_{ij} \in \{0,1\} & \forall i,j\in\{1,\dots,n\}
+    \end{cases} \text{ or }
+    \begin{cases}
+        P\un = P^\top\un =\un & \text{with } \un=(1,\dots,1)^\top\in \R^d \\
+        P \geq 0 & \text{point-wise} \\
+        P \in \Z^{d\times d} &
+    \end{cases}$$
+    This define indeed an integer linear problem called linear sum assigment problem:
+    $$\min_{\substack{P_{ij}\in\{0,1\} \\ P\un=\un=P^\top\un}} \ps{P}{C}$$
+\end{proof}
+
+\begin{proof}[Proof of \prettyref{lem:integer_relaxation}] \label{proof:integer_relaxation}
+    We have here a linear program, so we use linear programming theory.
+    Firstly, the identity matrix $I_d$ is always a feasible variable and $\|P\|_1 = n$, so the feasible set is non-empty. It is also closed since inequality constraints are closed. It is finally bounded beacause the norm $\|P\|_{\text{Fro}}=n$ is bounded. As a result, the program admit a solution and is indeed a $\min$. 
+
+    
+    Linear programming theory show that existence of solutions implies existence of vertex solutions\com{cite}. Vertex solutions are solutions that cannot be written as a convex combination of other solutions. The vertices of the set $\Pi_n$ of $n\times n$ doubly stochastic matrices are actually the permutations matrices, this is a consequence of Birkoff's Theorem\com{cite} that says all doubly stochastic matrices are convex combinations of permutation matrices. This implies that vertices must be permutation matrices, and since permutations matrices are convex independent, they they are actually all vertices. To show convex independence, let us write zero as a positive convex combination of different permutations matrices. If we look entry-wise, we see that a positive linear combination of ${0,1}$ is 0 if and only if all entries are 0. Since this is valid for all entries and all matrices are different we get contradiction.
+
+    As a result, the scalar version of LSAP \prettyref{eq:LSAP} always has integer solutions and in particular
+    \begin{IEEEeqnarray*}{rCl}
+    \min_{\substack{P_{ij}\in\{0,1\} \\ P\un=\un=P^\top\un}} \ps{P}{C} = \min_{\substack{P\geq0 \\ P\un=\un=P^\top\un}} \ps{P}{C}.
+    \end{IEEEeqnarray*}
+\end{proof}
+
+\begin{proof}[Sketch of proof of \prettyref{lem:continuity}] \label{proof:continuity}
+    Let $\psi\in C_c^\infty(\R^d)$, using the pushforward, we compute that
+    $$\partial_t\int \psi\dd\rho_t 
+    = \partial_t\int \psi\circ T_t \dd\mu
+    = \partial_t\int \psi\circ T_t \dd\mu $$
+    \end{proof}
+
+\begin{proof}[Sketch of proof of \prettyref{thm:BB}] \label{proof:BB}
+    Let's begin by showing that if $v$ is $C^1$, then $A(\rho,v)\geq W_2(\mu,\nu)^2$. For this we can define $T_t$ with the ODE 
+    $$\begin{cases}
+        \partial_t T_t(x) = v_t(T_t(x)) \\
+        T_0 = \Id
+    \end{cases}$$
+    Since $v$ is derivable and defined on the support of $\rho$ which is bounded, it is Lipschitz continuous so the ODE is well defined and has a unique solution $T$ such that curves $T_t$ doesn't cross, so $T_t$ is injective. By \com{cite}, $\rho_t = {T_t}_{\#}\mu$ and then
+    \begin{IEEEeqnarray*}{rCl's}
+        A(\rho,v) 
+        &=& \int\int\|v_t(x)\|^2\rho_t \dd x \dd t &\\
+        &=& \int\int\|v_t(T_t(x))\|^2\rho_0 \dd x \dd t & (by the pushforward)\\
+        &=& \int\int\|\partial_t T_t(x)\|^2\rho_0 \dd t \dd x & (by Fubbini-Tonelli)\\
+        &\geq& \int\|\int\partial_t T_t(x) \dd t\|^2\rho_0 \dd x & (by Jensen inequality)\\
+        &=& \int\| T_1(x) - T_0(x)\|^2 \dd \mu x & (Fondamental theorem of analysis)\\
+        &=& \int\| T(x) - x\|^2 \dd\mu x &\\
+        &\geq& W_2(\mu,\nu)^2.&
+    \end{IEEEeqnarray*}
+    
+    We can show that the non smooth case can be reduced to the smooth case by a smoothing argument using convolutions. This has been made in \cite[Theorem 8.1 p.239]{villani} but is not reproduced here for simplicity. We have then 
+    $$W_2(\mu,\nu)^2 \leq \inf \bigg\{\int_0^1\int \|v_t\|^2 \dd\rho_t\dd t \;\bigg|\; \partial_t\rho_t + \div(\rho_t v_t) = 0,\, \rho_0=\mu,\, \rho_1=\nu \bigg\},$$
+    and we exhibit a minimizer to get the equality and the fact that it is a $\min$.
+
+    By Brenier \prettyref{thm:brenier}, there exist a optimal transport map $T=\nabla\phi$, so we define the following interpolations
+    $$\begin{cases}
+        T_t = (1-t)T + t\Id \\
+        \phi_t = (1-t)\phi + t\|\Id\|^2
+    \end{cases}$$
+    We get see that $T_t=\nabla\phi_t$ is the gradient of a convex map so again by Brenier \prettyref{cor:brenier} they are optimal maps, and $T_t^{-1}=\nabla \phi_t^*$ the gradient of the Legendre transform is the $\rho_t$-almost everywhere inverse of $\nabla \phi_t$. By evaluating the ODE in $T_t^{-1}$ and using the definition of $T_t$, we can define
+    $$v_t = (\partial_t T_t) \circ T_t^{-1}  = (T-\Id)\circ T_t^{-1}.$$
+    This $v_t$ is bounded because $(T-\Id)\circ T_t^{-1}(\supp(\rho_t)) \subset (T-\Id)(\supp(\mu)) \subset \supp(\nu) - \supp(\mu)$ is bounded.
+    We define then $\rho_t={T_t}_{\#}\mu$, and by \com{cite}, $(\rho,v)$ satisfy the continuity equation, and we compute
+    \begin{IEEEeqnarray*}{rCl}
+        A(\rho,v) &=& \int \int \|v_t(x)\|^2 \rho_t(x) \dd x \dd t \\ 
+        &=& \int \int \|v_t(T_t(x))\|^2 \dd\mu(x) \dd t \\ 
+        &=& \int \int \|\partial_tT(x)\|^2 \dd\mu(x) \dd t \\ 
+        &=& \int \int \|T(x)-x\|^2 \dd\mu(x) \dd t \\ 
+        &=& \int \|T(x)-x\|^2 \dd\mu(x) \\ 
+        &=& W_2(\mu,\nu)^2 \\ 
+    \end{IEEEeqnarray*}
+    whixh show the equality.
+    
+\end{proof}
+
+\com{\dots}
+\nocite{*}
+\printbibliography
+\end{document}
