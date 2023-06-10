@@ -1,2 +1,6 @@
 # Computational-Optimal-Transport
-Computational Optimal Transport: A Comparison of Three Algorithms
+Computational Optimal Transport: A Comparison of Two Algorithms
+
+We present here two formulations of the Monge optimal transport problem. The first one is a discretization leading to the linear sum assignment problem, which we solve with the Hungarian algorithm. The second is the dynamical formulation of Benamou-Brenier and leads to a functional saddle problem, which we solve by a augmented Lagrangian method. Both methods are implemented, numerically analyzed and compared.
+
+In this project, we have assembled the steps to proove that the Monge problem is equivalent to the Linear sum assignment problem, and we have done the same for the dynamical formulation. The Hungairan algorithm has been implemented in his $O(n^3)$ version and tested numerically to exhibit a better practical complexity of $O(n^{2.65})$. For the dynamical formulation of Benamou Brenier, we proposed to solve the Poisson equation of the primal step with finite difference and a stored factorization of the stiffness matrix. This showed better complexity with respect to the number of iterations, almost linear, and accelerated the running time. It didn't change the complexity with respect to the discretization, but in practice we observe a better local rate and running time. Our implementation allowed us to reproduce the results of Benamou and Brenier in the original paper of the dynamical method.
