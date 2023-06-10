@@ -24,6 +24,18 @@ def preprocess(C,tol=1e-5):
     assert not np.any((1-np.isclose(U[:,np.newaxis]+V,C)) * x), "complementary stackness not satisfied"
     return n,U,V,row,x
 
+def preprocess2(C,tol=1e-5):
+    ''' Compute a feasible dual solution (U and V) and partial primal solution (row,x) for a cost C.
+        (return vectors as 1-dim arrays)
+    '''
+    n,n=np.shape(C)
+    U=np.zeros((n))
+    V=np.zeros((n))
+    assert np.all(U[:,np.newaxis] + V <= C + tol), "dual variables not feasible, with transgression " + str(np.min(C-U[:,np.newaxis] - V))
+    row= np.full(n,None)
+    x = np.full((n,n),False) # x not used for hungarian algo, take it off later
+    assert not np.any((1-np.isclose(U[:,np.newaxis]+V,C)) * x), "complementary stackness not satisfied"
+    return n,U,V,row,x
 
 def alternate(C,U,V,row,k):
     ''' Find an alternating tree rooted at an unassigned vertex k ∈ U

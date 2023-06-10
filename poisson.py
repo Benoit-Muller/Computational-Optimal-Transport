@@ -63,7 +63,40 @@ def poisson(f,g,A=None):
     u[:,0:-1,0:-1] = u_vect.reshape((n,n-1,n-1),order=order)
     u[:,-1,0:-1] = u[:,0,0:-1]
     u[:,:,-1] = u[:,:,0]
-    return u,A,b,u_vect
+    return u
+
+def build_Asolve(n):
+    A = laplacian_matrix(n)
+    one = sparse.bsr_matrix(np.ones((n*(n-1)**2,1)))
+    A = sparse.vstack((A, one.T))
+    one_zero = sparse.vstack((one, sparse.bsr_matrix([0])))
+    A = sparse.hstack((A, one_zero))
+    Asolve = sparse.linalg.factorized(A)
+    return Asolve
+
+
+def poisson2(f,g,Asolve=None):
+    n = np.shape(f)[0]
+    if Asolve is None:
+        Asolve = build_Asolve(n)
+    order = "F"
+    g_contribution = extend(g)[:,0:-1,0:-1]
+    g_contribution[-1] = - g_contribution[-1]
+    b = (f[:,0:-1,0:-1] + 2*n*g_contribution).flatten(order) / n**2
+    b = b - np.sum(b)
+    b = np.hstack((b, [0]))
+    u_vect = Asolve(b)
+    u_vect = u_vect[:-1] 
+
+    #b = b - np.sum(b)
+    #A,b = add_mean_condition(A,b)
+    #u_vect,res,rank,s = np.linalg.lstsq(A.toarray(),b)
+    
+    u = np.zeros((n,n,n))
+    u[:,0:-1,0:-1] = u_vect.reshape((n,n-1,n-1),order=order)
+    u[:,-1,0:-1] = u[:,0,0:-1]
+    u[:,:,-1] = u[:,:,0]
+    return u
 
 def derivative_matrices(n):
     Ap = sparse.diags([1, -2, 1], [-1, 0, 1], shape=(n-1, n-1))

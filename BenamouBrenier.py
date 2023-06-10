@@ -7,10 +7,10 @@ from time import time
 from warnings import warn
 from tqdm.notebook import tqdm,trange # to display loading bars
 from matplotlib.widgets import Slider
-from poisson import laplacian_matrix,poisson,derivative_matrices,divergence,gradient
+from poisson import laplacian_matrix,poisson,derivative_matrices,divergence,gradient,poisson2,build_Asolve
 
 class TransportProblem:
-    def __init__(self,mesh,mu,nu,T,tau=1,display=True):
+    def __init__(self,mesh,mu,nu,T,tau=1,display=True,Afactorized=True):
         """
         With N = N_1*...*N_d discretization
         Inputs:
@@ -57,6 +57,9 @@ class TransportProblem:
         self.nabla_phi = np.zeros((d+1,) + spacetime_grid_shape) # space-time gradient of phi
         self.laplacian_matrix = laplacian_matrix(space_grid_shape[0])
         self.An, self.Ap = derivative_matrices(space_grid_shape[0])
+        self.Afactorized = Afactorized
+        if Afactorized == True:
+            self.Asolve = build_Asolve(self.T)
 
         self.a = np.zeros(spacetime_grid_shape)
         self.b = np.zeros((d,)+ spacetime_grid_shape)
@@ -79,7 +82,7 @@ class TransportProblem:
         self.rho = self.M[0]
         self.m = self.M[1:]
 
-    def poisson_step(self,display=False):
+    def poisson_step1(self,display=False):
         """  Compute the solution to tau*laplacian(phi) = div(tau*c-M) ,
         with time-Neumann conditions    tau * d/dt phi(0,.) = mu - rho(0,.) + tau * a (0,.)
                                         tau * d/dt phi(1,.) = nu - rho(1,.) + tau * a (1,.) """
@@ -88,11 +91,31 @@ class TransportProblem:
                       + str(self.d) + "D space.")
         g = np.stack((self.mu, self.nu))/self.tau - self.rho[[0,-1]]/self.tau + self.a[[0,-1]]
         f = divergence(self.c-self.M/self.tau, self.An, self.Ap)
-        self.phi,_,_,_ = poisson(f,g,self.laplacian_matrix)
+        self.phi = poisson(f,g,self.laplacian_matrix)
         self.nabla_phi = gradient(self.phi,self.An,self.Ap)
         if display:
             print("Poisson step done.")
-    
+
+    def poisson_step2(self,display=False):
+        """  Compute the solution to tau*laplacian(phi) = div(tau*c-M) ,
+        with time-Neumann conditions    tau * d/dt phi(0,.) = mu - rho(0,.) + tau * a (0,.)
+                                        tau * d/dt phi(1,.) = nu - rho(1,.) + tau * a (1,.) """
+        if self.d!=3:
+            Exception("Poisson step is implemented only for a 2D space, not for a "
+                      + str(self.d) + "D space.")
+        g = np.stack((self.mu, self.nu))/self.tau - self.rho[[0,-1]]/self.tau + self.a[[0,-1]]
+        f = divergence(self.c-self.M/self.tau, self.An, self.Ap)
+        self.phi = poisson2(f,g,self.Asolve)
+        self.nabla_phi = gradient(self.phi,self.An,self.Ap)
+        if display:
+            print("Poisson step done.") 
+
+    def poisson_step(self,display=False):
+        if self.Afactorized==True:
+            self.poisson_step2(display=False)
+        else:
+            self.poisson_step1(display=False)
+
     def projection_step(self,display=False):
         " Minimize c, computed as the orthogonal projection of nabla_phi+M/tau-c to the parabola K = {(a,b) st. a+|b|^2 < 0}. "
         a=self.a
@@ -179,28 +202,43 @@ class TransportProblem:
         except ZeroDivisionError:
             warn("Division by zero in criterium (rho * nabla_phi = 0), infinity returned.")
             return np.inf
+    def lagrangian(self):
+        " Compute the augmented_lagrangian "
+        G = np.sum(self.rho[0] * self.phi[0] - self.rho[-1] * self.phi[-1])
+        constraint = self.nabla_phi - self.c
+        L = G + np.sum(self.M * constraint)
+        L_tau = L + self.tau/2 * np.sum(constraint**2)
+        return L,L_tau
         
     def solve(self,tol=1e-7,maxiter=100,display=True):
         """ Proceed augmented Lagrandgian method by doing iteratively the three steps poisson-projection-dual,
         until convergence is detected by residual or maxiter. """
         criteria=[]
+        LL=[]
         iterator = range(maxiter)
         if display:
             iterator = tqdm(iterator)
         for i in iterator:
+            L,L_tau = self.lagrangian()
+            LL.append(L_tau)
             self.poisson_step()
+            L,L_tau = self.lagrangian()
+            LL.append(L_tau)
             self.projection_step_bis()
+            L,L_tau = self.lagrangian()
+            LL.append(L_tau)
             self.dual_step()
+            self.tau = 1.5*self.tau
             crit = self.criterium()
             res = np.max(np.abs(self.residual()))
             criteria.append(crit)
-            if res < tol:
-                break
+            #if res < tol:
+                #break
         if res < tol and display:
-            print("Benamou-Brenier method converged to tolerance with criterium = "+str(crit))
+            print(f"Benamou-Brenier method converged to tolerance with criterium ={crit:.2f}")
         elif display:
            print("Benamou-Brenier method stopped at the maximum number of iterations, with criterium = "+str(crit)+">"+str(tol))
-        return criteria
+        return criteria,LL
     
     def plot(self,t=None):
         " plot rho[i] with a slider for i. Use <%matplotlib>, and turn back to <%matplotlib inline> after. "
@@ -238,6 +276,7 @@ class TransportProblem:
             return np.inf
         
 def last_root(a,b,c):
+    "compute the biggest real root of ax^3 + bx^2 + cx + d "
     p = b - a**2/3
     q = a / 27 * (2*a**2 - 9*b) + c
     delta = (p/3)**3 + (q/2)**2
