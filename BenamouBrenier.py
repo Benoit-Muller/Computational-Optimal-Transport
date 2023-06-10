@@ -260,7 +260,7 @@ class TransportProblem:
                 plt.contourf(np.arange(self.T)/(self.T-1),np.arange(self.T)/(self.T-1),self.rho[int(t*(self.T-1))])
                 plt.title("t="+str(t))
                 plt.colorbar()
-                plt.savefig("graphics/rho("+str(i)+").pdf")
+                plt.savefig(f"graphics/rho({i}).pdf")
 
     def k(rho,m): # uselfull?
         tol = 1e-7
