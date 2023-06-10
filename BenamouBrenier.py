@@ -228,7 +228,7 @@ class TransportProblem:
             L,L_tau = self.lagrangian()
             LL.append(L_tau)
             self.dual_step()
-            self.tau = 1.5*self.tau
+            self.tau = 2*self.tau
             crit = self.criterium()
             res = np.max(np.abs(self.residual()))
             criteria.append(crit)
@@ -257,7 +257,7 @@ class TransportProblem:
             tt = np.atleast_1d(t)
             for i,t in enumerate(tt):
                 plt.figure()
-                plt.contour(np.arange(self.T)/(self.T-1),np.arange(self.T)/(self.T-1),self.rho[int(t*(self.T-1))])
+                plt.contourf(np.arange(self.T)/(self.T-1),np.arange(self.T)/(self.T-1),self.rho[int(t*(self.T-1))])
                 plt.title("t="+str(t))
                 plt.colorbar()
                 plt.savefig("graphics/rho("+str(i)+").pdf")
